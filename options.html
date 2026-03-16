@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Note Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="header-main">
+          <div>
+            <p class="eyebrow">STUDY NOTE</p>
+            <h1>Workspace ghi chú học tập</h1>
+            <p class="muted">Lưu nhanh kiến thức, xem lại dễ, ôn tập hiệu quả.</p>
+          </div>
+          <button id="openComposerBtn" class="icon-btn" aria-label="Tạo note mới">+</button>
+        </div>
+
+        <section class="stats-grid">
+          <div class="stat-card"><span>Tổng note</span><strong id="statTotal">0</strong></div>
+          <div class="stat-card"><span>Cần ôn</span><strong id="statReview">0</strong></div>
+          <div class="stat-card"><span>Đã ghim</span><strong id="statPinned">0</strong></div>
+          <div class="stat-card"><span>Quá hạn</span><strong id="statOverdue">0</strong></div>
+        </section>
+      </header>
+
+      <section class="toolbar">
+        <div class="search-box">
+          <span>🔎</span>
+          <input id="searchInput" type="text" placeholder="Tìm theo tiêu đề, tag, nội dung..." />
+        </div>
+        <div id="chipsRow" class="chips-row"></div>
+        <div class="filters-row">
+          <select id="tagFilter" class="input filter-input"></select>
+          <select id="statusFilter" class="input filter-input">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="Đang học">Đang học</option>
+            <option value="Đã lưu">Đã lưu</option>
+            <option value="Ôn lại">Ôn lại</option>
+          </select>
+          <select id="sortSelect" class="input filter-input">
+            <option value="newest">Mới nhất</option>
+            <option value="oldest">Cũ nhất</option>
+            <option value="dueSoon">Đến hạn sớm</option>
+            <option value="masteryLow">Mastery thấp</option>
+            <option value="masteryHigh">Mastery cao</option>
+            <option value="titleAZ">Tên A-Z</option>
+          </select>
+        </div>
+      </section>
+
+      <main id="scrollArea" class="content-scroll">
+        <section class="hero-card">
+          <div class="hero-head">
+            <div>
+              <p class="eyebrow">QUICK CAPTURE</p>
+              <h2>Ghi chú nhanh trong lúc học</h2>
+            </div>
+            <span class="mode-pill">Focus mode</span>
+          </div>
+          <div class="form-stack">
+            <input id="quickTitle" class="input" type="text" placeholder="Tiêu đề note ngắn gọn" />
+            <div class="row-3">
+              <select id="quickTag" class="input"></select>
+              <select id="quickStatus" class="input">
+                <option>Đang học</option>
+                <option>Đã lưu</option>
+                <option>Ôn lại</option>
+              </select>
+              <input id="quickMastery" class="input" type="number" min="0" max="100" value="60" />
+            </div>
+            <textarea id="quickContent" class="input textarea" placeholder="Gõ nhanh điều vừa học được..."></textarea>
+            <div class="row-2">
+              <input id="quickReviewDate" class="input" type="date" />
+              <input id="newTagInput" class="input" type="text" placeholder="Thêm tag mới (tuỳ chọn)" />
+            </div>
+            <div class="row-3 toggles-row">
+              <label class="toggle"><input id="quickReview" type="checkbox" checked /> Cần ôn</label>
+              <label class="toggle"><input id="quickImportant" type="checkbox" /> Quan trọng</label>
+              <label class="toggle"><input id="quickPinned" type="checkbox" /> Ghim</label>
+            </div>
+            <div class="row-2">
+              <button id="quickSaveBtn" class="primary-btn">Lưu note</button>
+              <button id="quickResetBtn" class="ghost-btn">Xoá nháp</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="reviewSection" class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">REVIEW QUEUE</p>
+              <h3>Những note nên ôn trước</h3>
+            </div>
+            <button id="bulkReviewBtn" class="ghost-btn small">Ôn +10 cho tất cả đang lọc</button>
+          </div>
+          <div id="reviewQueue" class="review-list"></div>
+        </section>
+
+        <section id="notesSection" class="notes-stack"></section>
+
+        <section id="tagsSection" class="panel hidden">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">TAGS</p>
+              <h3>Tổng quan tags</h3>
+            </div>
+          </div>
+          <div id="tagsGrid" class="tags-grid"></div>
+        </section>
+
+        <section id="settingsSection" class="panel hidden">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">SETTINGS</p>
+              <h3>Sao lưu và khôi phục</h3>
+            </div>
+          </div>
+          <div class="settings-stack">
+            <div class="setting-card">
+              <div>
+                <strong>Backup tự động khi cập nhật phiên bản</strong>
+                <p class="muted">Khi extension mở ở phiên bản mới, hệ thống tự tạo backup dữ liệu hiện tại.</p>
+              </div>
+              <span class="pill success">Đang bật</span>
+            </div>
+            <div class="row-2 settings-actions">
+              <button id="createBackupBtn" class="primary-btn">Tạo backup ngay</button>
+              <button id="restoreLatestBackupBtn" class="ghost-btn">Khôi phục backup mới nhất</button>
+            </div>
+            <div class="row-2 settings-actions">
+              <button id="exportNotesBtn" class="ghost-btn">Xuất notes JSON</button>
+              <button id="exportLatestBackupBtn" class="ghost-btn">Xuất backup mới nhất</button>
+            </div>
+            <div class="row-2 settings-actions">
+              <label class="file-btn">
+                <input id="importInput" type="file" accept="application/json" hidden />
+                Import JSON / Backup
+              </label>
+              <button id="resetSampleBtn" class="danger-btn">Khôi phục dữ liệu mẫu</button>
+            </div>
+            <div>
+              <h4 class="title-sm">Danh sách backup gần đây</h4>
+              <div id="backupsList" class="backups-list"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <nav id="tabsNav" class="tabs-nav"></nav>
+    </div>
+  </div>
+
+  <dialog id="editorDialog" class="editor-dialog">
+    <form id="editorForm" method="dialog" class="editor-card">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">EDIT NOTE</p>
+          <h3 id="dialogTitleText">Tạo / sửa note</h3>
+        </div>
+        <button id="closeDialogBtn" type="button" class="icon-btn small">×</button>
+      </div>
+      <input id="editId" type="hidden" />
+      <input id="editTitle" class="input" type="text" placeholder="Tiêu đề note" />
+      <div class="row-3">
+        <select id="editTag" class="input"></select>
+        <select id="editStatus" class="input">
+          <option>Đang học</option>
+          <option>Đã lưu</option>
+          <option>Ôn lại</option>
+        </select>
+        <input id="editMastery" class="input" type="number" min="0" max="100" />
+      </div>
+      <textarea id="editContent" class="input textarea" placeholder="Nội dung"></textarea>
+      <div class="row-2">
+        <input id="editReviewDate" class="input" type="date" />
+        <input id="editNewTag" class="input" type="text" placeholder="Tag mới (tuỳ chọn)" />
+      </div>
+      <div class="row-3 toggles-row">
+        <label class="toggle"><input id="editReview" type="checkbox" /> Cần ôn</label>
+        <label class="toggle"><input id="editImportant" type="checkbox" /> Quan trọng</label>
+        <label class="toggle"><input id="editPinned" type="checkbox" /> Ghim</label>
+      </div>
+      <div class="row-2">
+        <button id="saveEditBtn" type="submit" class="primary-btn">Lưu thay đổi</button>
+        <button id="cancelEditBtn" type="button" class="ghost-btn">Huỷ</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="shared.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

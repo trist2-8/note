@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Study Note Workspace",
+  "version": "3.0.0",
+  "description": "Lưu note học tập, ôn tập, backup và khôi phục dữ liệu ngay trong trình duyệt.",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Study Note Workspace",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

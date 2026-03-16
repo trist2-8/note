@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Note Popup</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="popup-body">
+  <div class="popup-shell">
+    <div class="panel header-panel compact">
+      <div>
+        <p class="eyebrow">STUDY NOTE</p>
+        <h1 class="title-md">Quick capture</h1>
+        <p class="muted">Lưu nhanh ý chính vừa học.</p>
+      </div>
+      <button id="openDashboardBtn" class="ghost-btn">Dashboard</button>
+    </div>
+
+    <div class="panel compact form-stack">
+      <input id="popupTitle" class="input" type="text" placeholder="Tiêu đề note ngắn gọn" />
+      <div class="row-3">
+        <select id="popupTag" class="input">
+          <option>Frontend</option>
+          <option>Backend</option>
+          <option>Tools</option>
+          <option>Database</option>
+          <option>DevOps</option>
+        </select>
+        <select id="popupStatus" class="input">
+          <option>Đang học</option>
+          <option>Đã lưu</option>
+          <option>Ôn lại</option>
+        </select>
+        <input id="popupMastery" class="input" type="number" min="0" max="100" value="60" />
+      </div>
+      <textarea id="popupContent" class="input textarea" placeholder="Ghi ngắn nội dung chính vừa học..."></textarea>
+      <div class="row-2">
+        <label class="toggle"><input id="popupImportant" type="checkbox" /> Quan trọng</label>
+        <label class="toggle"><input id="popupPinned" type="checkbox" /> Ghim</label>
+      </div>
+      <div class="row-2">
+        <label class="toggle"><input id="popupReview" type="checkbox" checked /> Cần ôn lại</label>
+        <input id="popupReviewDate" class="input" type="date" />
+      </div>
+      <div class="row-2">
+        <button id="popupSaveBtn" class="primary-btn">Lưu note</button>
+        <button id="popupResetBtn" class="ghost-btn">Xoá nháp</button>
+      </div>
+      <div id="popupToast" class="toast hidden"></div>
+    </div>
+
+    <div class="panel compact">
+      <div class="section-head compact">
+        <h2 class="title-sm">Đến hạn ôn</h2>
+        <span id="popupDueCount" class="pill">0</span>
+      </div>
+      <div id="popupReviewList" class="mini-list"></div>
+    </div>
+  </div>
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
