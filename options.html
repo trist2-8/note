@@ -26,6 +26,7 @@
           <div class="search-bar">
             <span>🔎</span>
             <input id="searchInput" type="text" placeholder="Tìm theo tiêu đề, chủ đề, nội dung, tag..." />
+            <button class="clear-search hidden" id="clearSearchBtn" title="Xóa tìm kiếm">✕</button>
           </div>
           <div class="filter-row">
             <button class="chip active" data-chip="all">Tất cả</button>
@@ -37,6 +38,8 @@
 
         <main class="content-wrap">
           <section class="grid-two" id="overviewGrid"></section>
+
+          <section class="card hero-card" id="todayFocusCard"></section>
 
           <section class="quick-capture card card-accent">
             <div class="section-head spread-top">
@@ -62,7 +65,7 @@
               <textarea id="quickContent" class="capture-textarea" placeholder="Ví dụ: useEffect nên dùng khi cần đồng bộ dữ liệu, call API, hoặc xử lý side effect sau khi component render..."></textarea>
               <div class="capture-actions">
                 <button class="btn btn-primary grow" id="saveQuickBtn">Lưu note mới</button>
-                <button class="btn" id="pinQuickBtn">Ghim note</button>
+                <button class="btn" id="pinQuickBtn">Lưu & ghim</button>
               </div>
             </div>
           </section>
@@ -85,24 +88,28 @@
                   <p class="section-kicker">Learning Topics</p>
                   <h3 class="section-title">Tiến độ theo chủ đề</h3>
                 </div>
+                <span class="pill subtle-pill" id="topicCountPill">0 chủ đề</span>
               </div>
               <div id="topicsList" class="topics-list"></div>
             </div>
           </section>
 
           <section class="card" id="notesSection">
-            <div class="section-head">
+            <div class="section-head align-start-mobile">
               <div>
                 <p class="section-kicker">Recent Notes</p>
                 <h3 class="section-title">Note vừa cập nhật</h3>
+                <p class="section-text compact-text" id="notesMetaText"></p>
               </div>
-              <div class="section-tools">
+              <div class="section-tools toolbar-wrap">
                 <select id="sortSelect" class="mini-select">
                   <option value="newest">Mới nhất</option>
                   <option value="oldest">Cũ nhất</option>
                   <option value="masteryLow">Mastery thấp</option>
                   <option value="masteryHigh">Mastery cao</option>
+                  <option value="tagAZ">Tag A-Z</option>
                 </select>
+                <button class="mini-btn" id="toggleViewBtn">Compact</button>
               </div>
             </div>
             <div id="recentNotesList" class="stack-list"></div>
@@ -111,8 +118,17 @@
 
           <section class="stack-grid">
             <div class="card">
-              <p class="section-kicker">Today Checklist</p>
-              <h3 class="section-title">Mục tiêu học hôm nay</h3>
+              <div class="section-head align-start-mobile">
+                <div>
+                  <p class="section-kicker">Today Checklist</p>
+                  <h3 class="section-title">Mục tiêu học hôm nay</h3>
+                </div>
+                <span class="pill subtle-pill" id="taskProgressPill">0/0 hoàn thành</span>
+              </div>
+              <div class="task-input-row">
+                <input id="newTaskInput" class="capture-input" type="text" placeholder="Thêm mục tiêu hôm nay rồi nhấn Enter" />
+                <button class="btn" id="addTaskBtn">Thêm</button>
+              </div>
               <div id="tasksList" class="stack-list"></div>
             </div>
 
@@ -129,12 +145,16 @@
           </section>
 
           <section class="card hidden" id="reviewPanel">
-            <div class="section-head">
+            <div class="section-head align-start-mobile">
               <div>
                 <p class="section-kicker">Review</p>
                 <h3 class="section-title">Hàng đợi ôn tập</h3>
+                <p class="section-text compact-text">Các note có mastery thấp hoặc được đánh dấu cần ôn.</p>
               </div>
-              <button class="mini-btn" id="bulkReviewBtn">Ôn +10 toàn bộ</button>
+              <div class="section-tools toolbar-wrap">
+                <button class="mini-btn" id="bulkReviewBtn">Ôn +10 toàn bộ</button>
+                <button class="mini-btn" id="bulkCompleteBtn">Đánh dấu đã tiến bộ</button>
+              </div>
             </div>
             <div id="reviewPanelList" class="stack-list"></div>
           </section>
@@ -146,6 +166,9 @@
                 <h3 class="section-title">Sao lưu và khôi phục</h3>
               </div>
             </div>
+
+            <div class="grid-two mini-overview" id="storageOverview"></div>
+
             <div class="settings-grid">
               <button class="btn" id="backupNowBtn">Tạo backup ngay</button>
               <button class="btn" id="restoreLatestBtn">Khôi phục backup mới nhất</button>
@@ -157,7 +180,7 @@
             </div>
             <div class="backup-info">
               <p id="backupStatus">Chưa có backup.</p>
-              <p class="muted-line">Từ bản này trở đi extension dùng ID cố định. Cập nhật bằng cách chép đè file và bấm Reload để giữ dữ liệu.</p>
+              <p class="muted-line">Giữ nguyên thư mục extension và dùng Reload khi cập nhật để tiếp tục dùng cùng dữ liệu cũ.</p>
             </div>
             <div id="backupList" class="stack-list"></div>
           </section>
@@ -175,15 +198,39 @@
     </div>
   </div>
 
+  <div id="viewerModal" class="modal hidden">
+    <div class="modal-backdrop" data-close="viewer"></div>
+    <div class="modal-card modal-card-large">
+      <div class="section-head align-start-mobile">
+        <div>
+          <p class="section-kicker accent">Full Note</p>
+          <h3 class="section-title" id="viewTitle">Chi tiết note</h3>
+          <p class="section-text compact-text" id="viewMeta"></p>
+        </div>
+        <button class="icon-btn" data-close="viewer">✕</button>
+      </div>
+      <div class="viewer-badges" id="viewBadges"></div>
+      <div class="viewer-body" id="viewBody"></div>
+      <div class="viewer-footer">
+        <div class="action-group wrap">
+          <button class="mini-action" id="viewReviewBtn">Ôn +10</button>
+          <button class="mini-action" id="viewPinBtn">Ghim</button>
+          <button class="mini-action muted" id="viewImportantBtn">Quan trọng</button>
+          <button class="mini-action muted" id="viewEditBtn">Sửa</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="editorModal" class="modal hidden">
-    <div class="modal-backdrop" data-close="modal"></div>
+    <div class="modal-backdrop" data-close="editor"></div>
     <div class="modal-card">
-      <div class="section-head">
+      <div class="section-head align-start-mobile">
         <div>
           <p class="section-kicker accent">Editor</p>
           <h3 class="section-title">Tạo hoặc sửa note</h3>
         </div>
-        <button class="icon-btn" data-close="modal">✕</button>
+        <button class="icon-btn" data-close="editor">✕</button>
       </div>
       <div class="editor-form">
         <input id="editTitle" class="capture-input" type="text" placeholder="Tiêu đề note" />
@@ -203,7 +250,7 @@
         </div>
         <div class="capture-actions">
           <button class="btn btn-primary grow" id="saveEditBtn">Lưu thay đổi</button>
-          <button class="btn" data-close="modal">Đóng</button>
+          <button class="btn" data-close="editor">Đóng</button>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = '3.1.0';
+  const VERSION = '3.2.0';
   const APP_KEY = 'study_note_dashboard_v3_stable';
   const MAX_BACKUPS = 12;
   const DEFAULT_TAGS = ['JavaScript', 'Backend', 'React', 'Frontend', 'Algorithms', 'Git & Tools'];
@@ -15,6 +15,7 @@
     'study_note_workspace_custom_tags'
   ];
 
+  const now = Date.now();
   const seed = {
     version: VERSION,
     notes: [
@@ -28,8 +29,8 @@
         pinned: true,
         important: true,
         review: false,
-        createdAt: Date.now() - 20 * 60 * 1000,
-        updatedAt: Date.now() - 20 * 60 * 1000,
+        createdAt: now - 20 * 60 * 1000,
+        updatedAt: now - 20 * 60 * 1000,
         timeLabel: 'Hôm nay · 09:40'
       },
       {
@@ -42,8 +43,8 @@
         pinned: false,
         important: false,
         review: true,
-        createdAt: Date.now() - 90 * 60 * 1000,
-        updatedAt: Date.now() - 90 * 60 * 1000,
+        createdAt: now - 90 * 60 * 1000,
+        updatedAt: now - 90 * 60 * 1000,
         timeLabel: 'Hôm nay · 08:10'
       },
       {
@@ -56,8 +57,8 @@
         pinned: false,
         important: false,
         review: true,
-        createdAt: Date.now() - 12 * 60 * 60 * 1000,
-        updatedAt: Date.now() - 12 * 60 * 60 * 1000,
+        createdAt: now - 12 * 60 * 60 * 1000,
+        updatedAt: now - 12 * 60 * 60 * 1000,
         timeLabel: 'Hôm qua · 21:14'
       }
     ],
@@ -129,6 +130,12 @@
     return 'Đang học';
   }
 
+  function inferTitle(text) {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return 'Note mới';
+    return clean.length > 42 ? `${clean.slice(0, 42)}...` : clean;
+  }
+
   function normalizeNote(raw, fallbackTag = 'Frontend') {
     if (!raw || typeof raw !== 'object') return null;
     const createdAt = Number(new Date(raw.createdAt || raw.updatedAt || Date.now()));
@@ -174,7 +181,7 @@
   function normalizeData(input) {
     const notes = Array.isArray(input?.notes) ? input.notes.map((note) => normalizeNote(note)).filter(Boolean) : [];
     const tasksInput = Array.isArray(input?.tasks) ? input.tasks : seed.tasks;
-    const tasks = tasksInput.map(normalizeTask).filter(Boolean).slice(0, 20);
+    const tasks = tasksInput.map(normalizeTask).filter(Boolean).slice(0, 40);
     const backups = Array.isArray(input?.backups)
       ? input.backups.filter(Boolean).slice(0, MAX_BACKUPS)
       : [];
@@ -190,12 +197,6 @@
         lastMigratedFrom: input?.meta?.lastMigratedFrom || null
       }
     };
-  }
-
-  function inferTitle(text) {
-    const clean = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!clean) return 'Note mới';
-    return clean.length > 42 ? `${clean.slice(0, 42)}...` : clean;
   }
 
   async function createBackupInData(data, label) {
@@ -273,7 +274,7 @@
 
   function makeNote({ title, tag, preview, status, mastery, pinned = false, important = false }) {
     const now = Date.now();
-    const note = normalizeNote({
+    return normalizeNote({
       id: `n-${now}`,
       title,
       tag,
@@ -287,7 +288,6 @@
       updatedAt: now,
       timeLabel: timeLabel(now)
     });
-    return note;
   }
 
   function exportToFile(filename, payload) {
@@ -303,6 +303,13 @@
   async function exportCurrentData() {
     const current = await ensureData();
     exportToFile(`study-note-backup-${new Date().toISOString().slice(0, 10)}.json`, current);
+  }
+
+  async function exportBackup(backupId) {
+    const current = await ensureData();
+    const snapshot = (current.backups || []).find((item) => item.id === backupId);
+    if (!snapshot) throw new Error('Không tìm thấy backup');
+    exportToFile(`study-note-backup-${new Date(snapshot.createdAt).toISOString().slice(0, 10)}.json`, snapshot.payload);
   }
 
   async function importData(parsed) {
@@ -353,11 +360,13 @@
     makeNote,
     timeLabel,
     exportCurrentData,
+    exportBackup,
     importData,
     createManualBackup,
     restoreBackup,
     restoreSeedData,
     inferTitle,
-    normalizeData
+    normalizeData,
+    clampMastery
   };
 })();

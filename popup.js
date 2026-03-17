@@ -11,9 +11,32 @@
     window.__popupToast = setTimeout(() => toast.classList.add('hidden'), 1800);
   }
 
+  function esc(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function fillTags() {
     const tags = [...new Set((data.tags || []).concat(data.notes.map((note) => note.tag)))].sort((a, b) => a.localeCompare(b, 'vi'));
-    $('popupTag').innerHTML = tags.map((tag) => `<option value="${tag}">${tag}</option>`).join('');
+    $('popupTag').innerHTML = tags.map((tag) => `<option value="${esc(tag)}">${esc(tag)}</option>`).join('');
+  }
+
+  function renderStats() {
+    const items = [
+      { value: data.notes.length, label: 'Tổng note' },
+      { value: data.notes.filter((note) => note.review).length, label: 'Cần ôn' },
+      { value: data.notes.filter((note) => note.pinned).length, label: 'Đã ghim' }
+    ];
+    $('popupStats').innerHTML = items.map((item) => `
+      <div class="popup-stat">
+        <strong>${esc(item.value)}</strong>
+        <span>${esc(item.label)}</span>
+      </div>
+    `).join('');
   }
 
   function renderReviewList() {
@@ -23,8 +46,8 @@
         <div class="queue-item compact">
           <div class="queue-rank mini">•</div>
           <div class="queue-body">
-            <p class="queue-title">${note.title}</p>
-            <p class="queue-sub">Mastery ${note.mastery}%</p>
+            <p class="queue-title">${esc(note.title)}</p>
+            <p class="queue-sub">${esc(note.tag)} · Mastery ${note.mastery}%</p>
           </div>
         </div>
       `).join('')
@@ -54,12 +77,20 @@
     $('popupTitle').value = '';
     $('popupContent').value = '';
     $('popupMastery').value = 60;
+    renderStats();
     renderReviewList();
     showToast('Đã lưu note');
+  });
+
+  $('popupContent').addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      $('popupSaveBtn').click();
+    }
   });
 
   $('openDashboardBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
   fillTags();
+  renderStats();
   renderReviewList();
 })();
