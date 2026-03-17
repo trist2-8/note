@@ -1,24 +1,26 @@
-# Study Note Workspace - Stable Final
+# Study Note Dashboard V3 Stable
 
-Bản extension ổn định, làm lại từ đầu để dùng ngay.
+Bản ổn định để dùng lâu dài, có khóa ID extension để giảm rủi ro mất dữ liệu khi cập nhật.
 
-## Tính năng
-- Ghi chú học tập bằng popup hoặc dashboard
-- Dashboard cuộn ổn định, đọc được note cuối
-- Tìm kiếm, lọc, sắp xếp, tab Notes / Review / Tags / Cài đặt
-- Sửa, xoá, ghim, đánh dấu quan trọng, đổi trạng thái, tăng mastery
-- Review queue
-- Backup tự động khi cập nhật phiên bản
-- Backup thủ công, khôi phục backup mới nhất, xuất backup
-- Import notes JSON hoặc backup JSON
-- Lưu dữ liệu bằng `chrome.storage.local`
+## Điểm mới quan trọng
+- Giữ **ID extension cố định** bằng `manifest.key`
+- Backup tự động khi nâng version
+- Migration dữ liệu từ các bản cũ nếu còn cùng storage cũ
+- Backup thủ công / khôi phục / import / export JSON
+- Giữ nguyên dashboard V3 theo giao diện đã chốt
 
-## Cài đặt
+## Cách cài đặt an toàn
 1. Giải nén thư mục này
 2. Mở `chrome://extensions` hoặc `edge://extensions`
 3. Bật **Developer mode**
 4. Chọn **Load unpacked**
-5. Chọn thư mục extension
+5. Chọn thư mục `study-note-extension-v3-keyed-stable`
 
-## Cập nhật không mất dữ liệu
-Cách an toàn nhất là chép đè file mới vào đúng thư mục extension đang được load rồi bấm **Reload**.
+## Cách cập nhật mà giữ dữ liệu
+- Từ bản này trở đi, hãy **chép đè file mới vào cùng thư mục extension**
+- Sau đó bấm **Reload** trong trang extensions
+- Không nên bấm **Remove** nếu bạn muốn giữ dữ liệu trong `chrome.storage.local`
+
+## Ghi chú
+- Nếu dữ liệu cũ thuộc một extension có ID khác hẳn, Chrome không tự truy cập chéo sang storage cũ được.
+- Trong trường hợp đó, hãy dùng file backup/export JSON để nhập lại dữ liệu.

@@ -1,386 +1,363 @@
 (() => {
-  const APP_VERSION = "3.0.0";
-  const STORAGE_KEY = "studyNoteWorkspaceData";
-  const LEGACY_KEYS = [
-    "studyNotesData",
-    "studyNoteData",
-    "study-note-data",
-    "notes",
-    "study-notes"
+  const VERSION = '3.1.0';
+  const APP_KEY = 'study_note_dashboard_v3_stable';
+  const MAX_BACKUPS = 12;
+  const DEFAULT_TAGS = ['JavaScript', 'Backend', 'React', 'Frontend', 'Algorithms', 'Git & Tools'];
+  const LEGACY_OBJECT_KEYS = ['studyNoteV3Data'];
+  const LEGACY_NOTE_KEYS = [
+    'study_note_workspace_v2_plus_notes',
+    'study_note_workspace_v2_notes',
+    'study_note_workspace_notes'
   ];
-  const MAX_BACKUPS = 15;
-
-  const defaultNotes = [
-    {
-      id: String(Date.now() - 3),
-      title: "React hooks cơ bản",
-      tag: "Frontend",
-      content: "useState quản lý state cục bộ, useEffect xử lý side effect, nên tách custom hook khi logic lặp lại.",
-      status: "Đang học",
-      pinned: true,
-      important: true,
-      review: true,
-      mastery: 62,
-      reviewDate: nextDate(1),
-      createdAt: Date.now() - 86400000,
-      updatedAt: Date.now() - 86400000
-    },
-    {
-      id: String(Date.now() - 2),
-      title: "REST API notes",
-      tag: "Backend",
-      content: "GET để lấy dữ liệu, POST để tạo mới, PUT/PATCH để cập nhật, cần chú ý status code 200, 201, 400, 404.",
-      status: "Đã lưu",
-      pinned: false,
-      important: false,
-      review: false,
-      mastery: 78,
-      reviewDate: nextDate(5),
-      createdAt: Date.now() - 43200000,
-      updatedAt: Date.now() - 43200000
-    },
-    {
-      id: String(Date.now() - 1),
-      title: "Git workflow",
-      tag: "Tools",
-      content: "Nên tạo branch riêng cho từng tính năng, commit ngắn gọn rõ nghĩa, pull trước khi merge để tránh conflict.",
-      status: "Ôn lại",
-      pinned: false,
-      important: true,
-      review: true,
-      mastery: 41,
-      reviewDate: todayISO(),
-      createdAt: Date.now() - 21600000,
-      updatedAt: Date.now() - 21600000
-    }
+  const LEGACY_TAG_KEYS = [
+    'study_note_workspace_v2_plus_custom_tags',
+    'study_note_workspace_v2_custom_tags',
+    'study_note_workspace_custom_tags'
   ];
 
-  const defaultData = {
-    version: APP_VERSION,
-    notes: defaultNotes,
-    customTags: ["Frontend", "Backend", "Tools", "Database", "DevOps"],
+  const seed = {
+    version: VERSION,
+    notes: [
+      {
+        id: 'n1',
+        title: 'Closure trong JavaScript',
+        tag: 'JavaScript',
+        preview: 'Closure xuất hiện khi một hàm ghi nhớ phạm vi lexical của nó ngay cả khi được gọi bên ngoài phạm vi ban đầu.',
+        status: 'Đã lưu',
+        mastery: 78,
+        pinned: true,
+        important: true,
+        review: false,
+        createdAt: Date.now() - 20 * 60 * 1000,
+        updatedAt: Date.now() - 20 * 60 * 1000,
+        timeLabel: 'Hôm nay · 09:40'
+      },
+      {
+        id: 'n2',
+        title: 'HTTP status code cần nhớ',
+        tag: 'Backend',
+        preview: '200 OK, 201 Created, 204 No Content, 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error.',
+        status: 'Cần ôn',
+        mastery: 48,
+        pinned: false,
+        important: false,
+        review: true,
+        createdAt: Date.now() - 90 * 60 * 1000,
+        updatedAt: Date.now() - 90 * 60 * 1000,
+        timeLabel: 'Hôm nay · 08:10'
+      },
+      {
+        id: 'n3',
+        title: 'useMemo và useCallback',
+        tag: 'React',
+        preview: 'Dùng để tối ưu render, nhưng chỉ thật sự cần khi có chi phí tính toán lớn hoặc truyền props xuống component con nhạy cảm.',
+        status: 'Đang học',
+        mastery: 61,
+        pinned: false,
+        important: false,
+        review: true,
+        createdAt: Date.now() - 12 * 60 * 60 * 1000,
+        updatedAt: Date.now() - 12 * 60 * 60 * 1000,
+        timeLabel: 'Hôm qua · 21:14'
+      }
+    ],
+    tasks: [
+      { id: 't1', text: 'Ôn lại note React hooks trước 20:00', done: false },
+      { id: 't2', text: 'Viết note mới cho phần RESTful API', done: false },
+      { id: 't3', text: 'Ghim 3 note cốt lõi để review cuối tuần', done: true }
+    ],
+    tags: DEFAULT_TAGS,
     backups: [],
-    lastOpenedVersion: APP_VERSION
+    meta: {
+      installedAt: new Date().toISOString(),
+      lastVersion: VERSION,
+      lastMigratedFrom: null
+    }
   };
 
-  function todayISO() {
-    return new Date().toISOString().slice(0, 10);
+  function hasChromeStorage() {
+    return typeof chrome !== 'undefined' && chrome?.storage?.local;
   }
 
-  function nextDate(offsetDays) {
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
-    return d.toISOString().slice(0, 10);
-  }
-
-  function isChromeStorageAvailable() {
-    return typeof chrome !== "undefined" && chrome.storage && chrome.storage.local;
-  }
-
-  function storageGet(key) {
-    return new Promise((resolve) => {
-      if (isChromeStorageAvailable()) {
-        chrome.storage.local.get([key], (result) => resolve(result[key]));
-      } else {
-        const raw = localStorage.getItem(key);
-        resolve(raw ? JSON.parse(raw) : undefined);
-      }
-    });
-  }
-
-  function storageSet(obj) {
-    return new Promise((resolve) => {
-      if (isChromeStorageAvailable()) {
-        chrome.storage.local.set(obj, resolve);
-      } else {
-        Object.entries(obj).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
-        resolve();
-      }
-    });
-  }
-
-  function clone(value) {
+  function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
   }
 
-  function ensureNoteShape(note) {
-    const now = Date.now();
+  async function rawGet(key) {
+    if (hasChromeStorage()) {
+      const data = await chrome.storage.local.get([key]);
+      return data[key] ?? null;
+    }
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  async function rawSet(key, value) {
+    if (hasChromeStorage()) {
+      await chrome.storage.local.set({ [key]: value });
+      return;
+    }
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function clampMastery(value) {
+    const num = Number(value);
+    if (Number.isNaN(num)) return 0;
+    return Math.max(0, Math.min(100, Math.round(num)));
+  }
+
+  function timeLabel(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    if (d.toDateString() === now.toDateString()) return `Hôm nay · ${hh}:${mm}`;
+    if (d.toDateString() === yesterday.toDateString()) return `Hôm qua · ${hh}:${mm}`;
+    return `${d.getDate()}/${d.getMonth() + 1} · ${hh}:${mm}`;
+  }
+
+  function normalizeStatus(value) {
+    if (value === 'Ôn lại') return 'Cần ôn';
+    if (['Đang học', 'Đã lưu', 'Cần ôn'].includes(value)) return value;
+    return 'Đang học';
+  }
+
+  function normalizeNote(raw, fallbackTag = 'Frontend') {
+    if (!raw || typeof raw !== 'object') return null;
+    const createdAt = Number(new Date(raw.createdAt || raw.updatedAt || Date.now()));
+    const updatedAt = Number(new Date(raw.updatedAt || raw.createdAt || Date.now()));
+    const preview = String(raw.preview || raw.content || '').trim();
+    const title = String(raw.title || inferTitle(preview)).trim();
+    if (!title) return null;
+    const tag = String(raw.tag || fallbackTag || 'Frontend').trim() || 'Frontend';
+    const mastery = clampMastery(raw.mastery ?? raw.progress ?? 60);
+    const status = normalizeStatus(raw.status);
     return {
-      id: String(note.id || now + Math.random()),
-      title: String(note.title || "Không có tiêu đề"),
-      tag: String(note.tag || "Frontend"),
-      content: String(note.content || note.preview || ""),
-      status: ["Đang học", "Đã lưu", "Ôn lại"].includes(note.status) ? note.status : "Đang học",
-      pinned: Boolean(note.pinned),
-      important: Boolean(note.important),
-      review: note.review !== undefined ? Boolean(note.review) : true,
-      mastery: clampNumber(note.mastery, 0, 100, 60),
-      reviewDate: validDateString(note.reviewDate) ? note.reviewDate : todayISO(),
-      createdAt: Number(note.createdAt) || now,
-      updatedAt: Number(note.updatedAt) || now
+      id: String(raw.id || `n-${createdAt}-${Math.random().toString(36).slice(2, 6)}`),
+      title,
+      tag,
+      preview,
+      status,
+      mastery,
+      pinned: Boolean(raw.pinned),
+      important: Boolean(raw.important),
+      review: Boolean(raw.review ?? (status === 'Cần ôn' || mastery < 65)),
+      createdAt,
+      updatedAt,
+      timeLabel: raw.timeLabel || timeLabel(updatedAt)
     };
   }
 
-  function clampNumber(value, min, max, fallback) {
-    const n = Number(value);
-    if (Number.isNaN(n)) return fallback;
-    return Math.min(max, Math.max(min, n));
-  }
-
-  function validDateString(value) {
-    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
-  }
-
-  function normalizeData(data) {
-    const src = data && typeof data === "object" ? data : {};
-    const notes = Array.isArray(src.notes) ? src.notes.map(ensureNoteShape) : clone(defaultNotes);
-    const customTags = Array.isArray(src.customTags) && src.customTags.length
-      ? uniqueStrings(src.customTags)
-      : clone(defaultData.customTags);
-    const backups = Array.isArray(src.backups) ? src.backups.filter(Boolean).slice(0, MAX_BACKUPS) : [];
-    return {
-      version: APP_VERSION,
-      notes,
-      customTags,
-      backups,
-      lastOpenedVersion: src.lastOpenedVersion || APP_VERSION
-    };
-  }
-
-  function uniqueStrings(list) {
-    return Array.from(new Set(list.map((x) => String(x).trim()).filter(Boolean)));
-  }
-
-  async function tryLegacyMigration() {
-    for (const key of LEGACY_KEYS) {
-      const legacy = await storageGet(key);
-      if (!legacy) continue;
-
-      if (Array.isArray(legacy)) {
-        return normalizeData({ notes: legacy, customTags: defaultData.customTags, backups: [] });
-      }
-
-      if (legacy && typeof legacy === "object") {
-        if (Array.isArray(legacy.notes) || Array.isArray(legacy.customTags)) {
-          return normalizeData(legacy);
-        }
-      }
+  function normalizeTask(raw, index) {
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      return { id: `t-${index}-${Date.now()}`, text: raw, done: false };
+    }
+    if (typeof raw === 'object' && raw.text) {
+      return { id: String(raw.id || `t-${index}-${Date.now()}`), text: String(raw.text), done: Boolean(raw.done) };
     }
     return null;
   }
 
-  function createBackupRecord(data, reason) {
+  function normalizeTags(tags, notes) {
+    const fromNotes = Array.isArray(notes) ? notes.map((n) => n.tag) : [];
+    return Array.from(new Set([...(Array.isArray(tags) ? tags : []), ...fromNotes, ...DEFAULT_TAGS].map((tag) => String(tag || '').trim()).filter(Boolean)));
+  }
+
+  function normalizeData(input) {
+    const notes = Array.isArray(input?.notes) ? input.notes.map((note) => normalizeNote(note)).filter(Boolean) : [];
+    const tasksInput = Array.isArray(input?.tasks) ? input.tasks : seed.tasks;
+    const tasks = tasksInput.map(normalizeTask).filter(Boolean).slice(0, 20);
+    const backups = Array.isArray(input?.backups)
+      ? input.backups.filter(Boolean).slice(0, MAX_BACKUPS)
+      : [];
     return {
-      id: String(Date.now()),
-      createdAt: Date.now(),
-      reason,
-      payload: {
-        notes: clone(data.notes),
-        customTags: clone(data.customTags),
-        version: data.version
+      version: input?.version || VERSION,
+      notes,
+      tasks: tasks.length ? tasks : deepClone(seed.tasks),
+      tags: normalizeTags(input?.tags || input?.customTags, notes),
+      backups,
+      meta: {
+        installedAt: input?.meta?.installedAt || new Date().toISOString(),
+        lastVersion: input?.meta?.lastVersion || input?.version || VERSION,
+        lastMigratedFrom: input?.meta?.lastMigratedFrom || null
       }
     };
   }
 
-  async function loadData() {
-    let data = await storageGet(STORAGE_KEY);
-    if (!data) {
-      const migrated = await tryLegacyMigration();
-      data = migrated || clone(defaultData);
-      await saveData(data);
-    } else {
-      data = normalizeData(data);
-      await saveData(data);
+  function inferTitle(text) {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return 'Note mới';
+    return clean.length > 42 ? `${clean.slice(0, 42)}...` : clean;
+  }
+
+  async function createBackupInData(data, label) {
+    const snapshot = {
+      id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: Date.now(),
+      label,
+      payload: deepClone({ ...data, backups: [] })
+    };
+    data.backups = [snapshot, ...(Array.isArray(data.backups) ? data.backups : [])].slice(0, MAX_BACKUPS);
+    return snapshot;
+  }
+
+  async function migrateLegacyData() {
+    for (const key of LEGACY_OBJECT_KEYS) {
+      const obj = await rawGet(key);
+      if (obj && typeof obj === 'object' && Array.isArray(obj.notes) && obj.notes.length) {
+        const normalized = normalizeData(obj);
+        normalized.meta.lastMigratedFrom = key;
+        return normalized;
+      }
     }
-    return data;
+
+    for (const key of LEGACY_NOTE_KEYS) {
+      const notes = await rawGet(key);
+      if (Array.isArray(notes) && notes.length) {
+        const normalizedNotes = notes.map((note) => normalizeNote(note)).filter(Boolean);
+        let tags = [];
+        for (const tagKey of LEGACY_TAG_KEYS) {
+          const foundTags = await rawGet(tagKey);
+          if (Array.isArray(foundTags) && foundTags.length) {
+            tags = foundTags;
+            break;
+          }
+        }
+        const migrated = normalizeData({ notes: normalizedNotes, tags, version: VERSION });
+        migrated.meta.lastMigratedFrom = key;
+        return migrated;
+      }
+    }
+    return null;
   }
 
   async function saveData(data) {
     const normalized = normalizeData(data);
-    await storageSet({ [STORAGE_KEY]: normalized });
+    normalized.version = VERSION;
+    normalized.meta.lastVersion = VERSION;
+    await rawSet(APP_KEY, normalized);
     return normalized;
   }
 
-  async function ensureVersionBackup() {
-    const data = await loadData();
-    if (data.lastOpenedVersion !== APP_VERSION) {
-      const backup = createBackupRecord(data, `Auto backup trước khi mở phiên bản ${APP_VERSION}`);
-      data.backups.unshift(backup);
-      data.backups = data.backups.slice(0, MAX_BACKUPS);
-      data.lastOpenedVersion = APP_VERSION;
-      await saveData(data);
-      return backup;
+  async function ensureData() {
+    let current = await rawGet(APP_KEY);
+    if (!current) {
+      const migrated = await migrateLegacyData();
+      current = migrated || deepClone(seed);
+      if (migrated) {
+        await createBackupInData(current, `Migration từ ${migrated.meta.lastMigratedFrom}`);
+      }
+      current.version = VERSION;
+      current.meta.lastVersion = VERSION;
+      await rawSet(APP_KEY, current);
+      return normalizeData(current);
     }
-    return null;
+
+    current = normalizeData(current);
+    if (current.meta.lastVersion !== VERSION || current.version !== VERSION) {
+      await createBackupInData(current, `Auto backup ${current.meta.lastVersion || current.version || 'old'} → ${VERSION}`);
+      current.version = VERSION;
+      current.meta.lastVersion = VERSION;
+      await rawSet(APP_KEY, current);
+    }
+    return normalizeData(current);
   }
 
-  async function addNote(noteInput) {
-    const data = await loadData();
-    const note = ensureNoteShape({
-      ...noteInput,
-      id: String(Date.now()),
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+  function makeNote({ title, tag, preview, status, mastery, pinned = false, important = false }) {
+    const now = Date.now();
+    const note = normalizeNote({
+      id: `n-${now}`,
+      title,
+      tag,
+      preview,
+      status,
+      mastery,
+      pinned,
+      important,
+      review: normalizeStatus(status) === 'Cần ôn' || clampMastery(mastery) < 65,
+      createdAt: now,
+      updatedAt: now,
+      timeLabel: timeLabel(now)
     });
-    data.notes.unshift(note);
-    if (note.tag && !data.customTags.includes(note.tag)) data.customTags.push(note.tag);
-    await saveData(data);
     return note;
   }
 
-  async function updateNote(id, patch) {
-    const data = await loadData();
-    data.notes = data.notes.map((note) => note.id === id ? ensureNoteShape({ ...note, ...patch, updatedAt: Date.now() }) : note);
-    if (patch.tag && !data.customTags.includes(patch.tag)) data.customTags.push(patch.tag);
-    await saveData(data);
-    return data;
-  }
-
-  async function deleteNote(id) {
-    const data = await loadData();
-    data.notes = data.notes.filter((note) => note.id !== id);
-    await saveData(data);
-    return data;
-  }
-
-  async function createManualBackup(reason = "Backup thủ công") {
-    const data = await loadData();
-    const backup = createBackupRecord(data, reason);
-    data.backups.unshift(backup);
-    data.backups = data.backups.slice(0, MAX_BACKUPS);
-    await saveData(data);
-    return backup;
-  }
-
-  async function restoreBackup(backupId) {
-    const data = await loadData();
-    const found = data.backups.find((b) => b.id === backupId);
-    if (!found) throw new Error("Không tìm thấy backup.");
-    const restoreBefore = createBackupRecord(data, "Backup tự động trước khi khôi phục");
-    const restored = normalizeData({
-      notes: found.payload.notes,
-      customTags: found.payload.customTags,
-      backups: [restoreBefore, ...data.backups],
-      lastOpenedVersion: APP_VERSION
-    });
-    restored.backups = restored.backups.slice(0, MAX_BACKUPS);
-    await saveData(restored);
-    return restored;
-  }
-
-  async function restoreLatestBackup() {
-    const data = await loadData();
-    const latest = data.backups[0];
-    if (!latest) throw new Error("Chưa có backup nào.");
-    return restoreBackup(latest.id);
-  }
-
-  async function importJsonPayload(payload) {
-    const data = await loadData();
-    const before = createBackupRecord(data, "Backup tự động trước khi import");
-
-    let imported;
-    if (Array.isArray(payload)) {
-      imported = normalizeData({ notes: payload, customTags: data.customTags, backups: [before, ...data.backups] });
-    } else if (payload && typeof payload === "object") {
-      if (Array.isArray(payload.notes)) {
-        imported = normalizeData({
-          notes: payload.notes,
-          customTags: Array.isArray(payload.customTags) ? payload.customTags : data.customTags,
-          backups: [before, ...data.backups]
-        });
-      } else if (payload.payload && Array.isArray(payload.payload.notes)) {
-        imported = normalizeData({
-          notes: payload.payload.notes,
-          customTags: Array.isArray(payload.payload.customTags) ? payload.payload.customTags : data.customTags,
-          backups: [before, ...data.backups]
-        });
-      } else {
-        throw new Error("File JSON không đúng định dạng notes hoặc backup.");
-      }
-    } else {
-      throw new Error("Dữ liệu import không hợp lệ.");
-    }
-
-    imported.backups = imported.backups.slice(0, MAX_BACKUPS);
-    await saveData(imported);
-    return imported;
-  }
-
-  async function restoreSampleData() {
-    const data = await loadData();
-    const before = createBackupRecord(data, "Backup tự động trước khi khôi phục dữ liệu mẫu");
-    const restored = normalizeData({
-      notes: clone(defaultNotes),
-      customTags: clone(defaultData.customTags),
-      backups: [before, ...data.backups]
-    });
-    await saveData(restored);
-    return restored;
-  }
-
-  function exportFile(filename, object) {
-    const blob = new Blob([JSON.stringify(object, null, 2)], { type: "application/json" });
+  function exportToFile(filename, payload) {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = filename;
-    document.body.appendChild(a);
     a.click();
-    a.remove();
     URL.revokeObjectURL(url);
   }
 
-  function formatDateTime(ts) {
-    return new Intl.DateTimeFormat("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(new Date(ts));
+  async function exportCurrentData() {
+    const current = await ensureData();
+    exportToFile(`study-note-backup-${new Date().toISOString().slice(0, 10)}.json`, current);
   }
 
-  function noteTimeText(note) {
-    return formatDateTime(note.updatedAt || note.createdAt);
+  async function importData(parsed) {
+    if (!parsed || typeof parsed !== 'object') throw new Error('Dữ liệu không hợp lệ');
+    const current = await ensureData();
+    await createBackupInData(current, 'Pre-import backup');
+    const imported = normalizeData(parsed.meta || parsed.notes ? parsed : { notes: parsed });
+    imported.backups = [...(Array.isArray(parsed.backups) ? parsed.backups : []), ...current.backups].slice(0, MAX_BACKUPS);
+    imported.version = VERSION;
+    imported.meta.lastVersion = VERSION;
+    await rawSet(APP_KEY, imported);
+    return imported;
   }
 
-  function dueState(note) {
-    if (!note.reviewDate) return "none";
-    const today = todayISO();
-    if (note.reviewDate < today) return "overdue";
-    if (note.reviewDate === today) return "today";
-    return "future";
+  async function createManualBackup(label = 'Manual backup') {
+    const current = await ensureData();
+    await createBackupInData(current, label);
+    await rawSet(APP_KEY, current);
+    return normalizeData(current);
   }
 
-  function computeStats(notes) {
-    const overdue = notes.filter((n) => dueState(n) === "overdue").length;
-    const review = notes.filter((n) => n.review).length;
-    const pinned = notes.filter((n) => n.pinned).length;
-    return { total: notes.length, review, pinned, overdue };
+  async function restoreBackup(backupId) {
+    const current = await ensureData();
+    const snapshot = (current.backups || []).find((item) => item.id === backupId);
+    if (!snapshot) throw new Error('Không tìm thấy backup');
+    const restored = normalizeData(snapshot.payload);
+    restored.backups = current.backups;
+    restored.version = VERSION;
+    restored.meta.lastVersion = VERSION;
+    await rawSet(APP_KEY, restored);
+    return restored;
   }
 
-  window.StudyNoteApp = {
-    APP_VERSION,
-    STORAGE_KEY,
-    defaultData,
-    todayISO,
-    loadData,
+  async function restoreSeedData() {
+    const current = await ensureData();
+    await createBackupInData(current, 'Pre-seed restore backup');
+    const next = deepClone(seed);
+    next.backups = current.backups;
+    await rawSet(APP_KEY, next);
+    return normalizeData(next);
+  }
+
+  globalThis.StudyStore = {
+    VERSION,
+    APP_KEY,
+    ensureData,
     saveData,
-    addNote,
-    updateNote,
-    deleteNote,
+    makeNote,
+    timeLabel,
+    exportCurrentData,
+    importData,
     createManualBackup,
     restoreBackup,
-    restoreLatestBackup,
-    importJsonPayload,
-    restoreSampleData,
-    exportFile,
-    formatDateTime,
-    noteTimeText,
-    dueState,
-    computeStats,
-    ensureVersionBackup,
-    uniqueStrings
+    restoreSeedData,
+    inferTitle,
+    normalizeData
   };
 })();

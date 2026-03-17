@@ -1,93 +1,65 @@
-const App = window.StudyNoteApp;
+(async () => {
+  const store = window.StudyStore;
+  let data = await store.ensureData();
+  const $ = (id) => document.getElementById(id);
 
-function popupToast(message) {
-  const el = document.getElementById("popupToast");
-  el.textContent = message;
-  el.classList.remove("hidden");
-  clearTimeout(window.__popupToastTimer);
-  window.__popupToastTimer = setTimeout(() => el.classList.add("hidden"), 1800);
-}
-
-function collectPopupForm() {
-  return {
-    title: document.getElementById("popupTitle").value.trim(),
-    tag: document.getElementById("popupTag").value,
-    status: document.getElementById("popupStatus").value,
-    mastery: Number(document.getElementById("popupMastery").value || 60),
-    content: document.getElementById("popupContent").value.trim(),
-    important: document.getElementById("popupImportant").checked,
-    pinned: document.getElementById("popupPinned").checked,
-    review: document.getElementById("popupReview").checked,
-    reviewDate: document.getElementById("popupReviewDate").value || App.todayISO()
-  };
-}
-
-function resetPopupForm() {
-  document.getElementById("popupTitle").value = "";
-  document.getElementById("popupStatus").value = "Đang học";
-  document.getElementById("popupMastery").value = 60;
-  document.getElementById("popupContent").value = "";
-  document.getElementById("popupImportant").checked = false;
-  document.getElementById("popupPinned").checked = false;
-  document.getElementById("popupReview").checked = true;
-  document.getElementById("popupReviewDate").value = "";
-}
-
-function renderPopupReview(notes) {
-  const list = document.getElementById("popupReviewList");
-  const due = notes
-    .filter((n) => n.review && ["today", "overdue"].includes(App.dueState(n)))
-    .sort((a, b) => a.mastery - b.mastery)
-    .slice(0, 4);
-
-  document.getElementById("popupDueCount").textContent = String(due.length);
-  list.innerHTML = "";
-  if (!due.length) {
-    list.innerHTML = '<div class="empty-mini">Chưa có note đến hạn.</div>';
-    return;
+  function showToast(message) {
+    const toast = $('popupToast');
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    clearTimeout(window.__popupToast);
+    window.__popupToast = setTimeout(() => toast.classList.add('hidden'), 1800);
   }
-  due.forEach((note) => {
-    const item = document.createElement("div");
-    item.className = "mini-item";
-    item.innerHTML = `
-      <div>
-        <strong>${escapeHtml(note.title)}</strong>
-        <p>${escapeHtml(note.tag)} · ${note.mastery}%</p>
-      </div>
-      <span class="pill ${App.dueState(note) === "overdue" ? "danger" : "warn"}">${App.dueState(note) === "overdue" ? "Quá hạn" : "Hôm nay"}</span>
-    `;
-    list.appendChild(item);
-  });
-}
 
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+  function fillTags() {
+    const tags = [...new Set((data.tags || []).concat(data.notes.map((note) => note.tag)))].sort((a, b) => a.localeCompare(b, 'vi'));
+    $('popupTag').innerHTML = tags.map((tag) => `<option value="${tag}">${tag}</option>`).join('');
+  }
 
-async function initPopup() {
-  await App.ensureVersionBackup();
-  const data = await App.loadData();
-  renderPopupReview(data.notes);
+  function renderReviewList() {
+    const queue = [...data.notes].filter((note) => note.review).sort((a, b) => a.mastery - b.mastery).slice(0, 3);
+    $('popupReviewList').innerHTML = queue.length
+      ? queue.map((note) => `
+        <div class="queue-item compact">
+          <div class="queue-rank mini">•</div>
+          <div class="queue-body">
+            <p class="queue-title">${note.title}</p>
+            <p class="queue-sub">Mastery ${note.mastery}%</p>
+          </div>
+        </div>
+      `).join('')
+      : '<div class="empty-mini">Không có note cần ôn.</div>';
+  }
 
-  document.getElementById("openDashboardBtn").addEventListener("click", () => chrome.runtime.openOptionsPage());
-  document.getElementById("popupResetBtn").addEventListener("click", resetPopupForm);
-  document.getElementById("popupSaveBtn").addEventListener("click", async () => {
-    const payload = collectPopupForm();
-    if (!payload.title || !payload.content) {
-      popupToast("Nhập tiêu đề và nội dung trước đã.");
+  $('popupSaveBtn').addEventListener('click', async () => {
+    const title = $('popupTitle').value.trim();
+    const preview = $('popupContent').value.trim();
+    if (!title || !preview) {
+      showToast('Nhập tiêu đề và nội dung');
       return;
     }
-    await App.addNote(payload);
-    popupToast("Đã lưu note.");
-    resetPopupForm();
-    const updated = await App.loadData();
-    renderPopupReview(updated.notes);
+    data = await store.ensureData();
+    const note = store.makeNote({
+      title,
+      tag: $('popupTag').value,
+      preview,
+      status: $('popupStatus').value,
+      mastery: $('popupMastery').value,
+      pinned: false,
+      important: false
+    });
+    data.notes.unshift(note);
+    if (!data.tags.includes(note.tag)) data.tags.push(note.tag);
+    data = await store.saveData(data);
+    $('popupTitle').value = '';
+    $('popupContent').value = '';
+    $('popupMastery').value = 60;
+    renderReviewList();
+    showToast('Đã lưu note');
   });
-}
 
-document.addEventListener("DOMContentLoaded", initPopup);
+  $('openDashboardBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+  fillTags();
+  renderReviewList();
+})();
