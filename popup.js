@@ -39,6 +39,20 @@
     `).join('');
   }
 
+
+  async function renderDraftInfo() {
+    const draft = await store.getDraft();
+    const info = $('popupDraftInfo');
+    const btn = $('continueDraftBtn');
+    if (!draft || !(draft.title || draft.preview)) {
+      info.textContent = 'Chưa có bản nháp Editor Pro.';
+      btn.textContent = 'Mở Editor Pro';
+      return;
+    }
+    info.textContent = `Có nháp: ${draft.title || 'Note chưa đặt tên'} · ${new Date(draft.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+    btn.textContent = 'Tiếp tục viết';
+  }
+
   function renderReviewList() {
     const queue = [...data.notes].filter((note) => note.review).sort((a, b) => a.mastery - b.mastery).slice(0, 3);
     $('popupReviewList').innerHTML = queue.length
@@ -89,8 +103,10 @@
   });
 
   $('openDashboardBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
+  $('continueDraftBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
   fillTags();
   renderStats();
   renderReviewList();
+  renderDraftInfo();
 })();

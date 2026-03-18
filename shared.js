@@ -1,6 +1,8 @@
 (() => {
-  const VERSION = '3.2.0';
+  const VERSION = '3.5.1';
   const APP_KEY = 'study_note_dashboard_v3_stable';
+  const DRAFT_KEY = `${APP_KEY}_editor_draft`;
+
   const MAX_BACKUPS = 12;
   const DEFAULT_TAGS = ['JavaScript', 'Backend', 'React', 'Frontend', 'Algorithms', 'Git & Tools'];
   const LEGACY_OBJECT_KEYS = ['studyNoteV3Data'];
@@ -106,6 +108,14 @@
     localStorage.setItem(key, JSON.stringify(value));
   }
 
+  async function rawRemove(key) {
+    if (hasChromeStorage()) {
+      await chrome.storage.local.remove(key);
+      return;
+    }
+    localStorage.removeItem(key);
+  }
+
   function clampMastery(value) {
     const num = Number(value);
     if (Number.isNaN(num)) return 0;
@@ -136,6 +146,46 @@
     return clean.length > 42 ? `${clean.slice(0, 42)}...` : clean;
   }
 
+  function normalizeHistory(history) {
+    if (!Array.isArray(history)) return [];
+    return history
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const updatedAt = Number(new Date(item.updatedAt || Date.now()));
+        return {
+          id: String(item.id || `h-${updatedAt}-${Math.random().toString(36).slice(2, 6)}`),
+          label: String(item.label || 'Revision').trim() || 'Revision',
+          title: String(item.title || '').trim(),
+          tag: String(item.tag || 'Frontend').trim() || 'Frontend',
+          preview: String(item.preview || item.content || '').trim(),
+          status: normalizeStatus(item.status),
+          mastery: clampMastery(item.mastery ?? 0),
+          pinned: Boolean(item.pinned),
+          important: Boolean(item.important),
+          updatedAt
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 10);
+  }
+
+  function snapshotFromNote(raw, label = 'Revision') {
+    const updatedAt = Date.now();
+    return {
+      id: `h-${updatedAt}-${Math.random().toString(36).slice(2, 6)}`,
+      label,
+      title: String(raw.title || '').trim(),
+      tag: String(raw.tag || 'Frontend').trim() || 'Frontend',
+      preview: String(raw.preview || raw.content || '').trim(),
+      status: normalizeStatus(raw.status),
+      mastery: clampMastery(raw.mastery ?? 0),
+      pinned: Boolean(raw.pinned),
+      important: Boolean(raw.important),
+      updatedAt
+    };
+  }
+
   function normalizeNote(raw, fallbackTag = 'Frontend') {
     if (!raw || typeof raw !== 'object') return null;
     const createdAt = Number(new Date(raw.createdAt || raw.updatedAt || Date.now()));
@@ -158,7 +208,8 @@
       review: Boolean(raw.review ?? (status === 'Cần ôn' || mastery < 65)),
       createdAt,
       updatedAt,
-      timeLabel: raw.timeLabel || timeLabel(updatedAt)
+      timeLabel: raw.timeLabel || timeLabel(updatedAt),
+      history: normalizeHistory(raw.history)
     };
   }
 
@@ -352,9 +403,52 @@
     return normalizeData(next);
   }
 
+  async function saveDraft(draft) {
+    const payload = {
+      noteId: String(draft?.noteId || 'new'),
+      title: String(draft?.title || '').trim(),
+      tag: String(draft?.tag || 'Frontend').trim() || 'Frontend',
+      status: normalizeStatus(draft?.status),
+      mastery: clampMastery(draft?.mastery ?? 0),
+      preview: String(draft?.preview || '').replace(/\r\n/g, '\n'),
+      pinned: Boolean(draft?.pinned),
+      important: Boolean(draft?.important),
+      updatedAt: Date.now()
+    };
+    await rawSet(DRAFT_KEY, payload);
+    return payload;
+  }
+
+  async function getDraft() {
+    const draft = await rawGet(DRAFT_KEY);
+    if (!draft || typeof draft !== 'object') return null;
+    return {
+      noteId: String(draft.noteId || 'new'),
+      title: String(draft.title || ''),
+      tag: String(draft.tag || 'Frontend'),
+      status: normalizeStatus(draft.status),
+      mastery: clampMastery(draft.mastery ?? 0),
+      preview: String(draft.preview || ''),
+      pinned: Boolean(draft.pinned),
+      important: Boolean(draft.important),
+      updatedAt: Number(new Date(draft.updatedAt || Date.now()))
+    };
+  }
+
+  async function clearDraft() {
+    await rawRemove(DRAFT_KEY);
+  }
+
+  function pushHistory(note, label = 'Revision') {
+    const snapshot = snapshotFromNote(note, label);
+    note.history = [snapshot, ...(Array.isArray(note.history) ? note.history : [])].slice(0, 10);
+    return note.history;
+  }
+
   globalThis.StudyStore = {
     VERSION,
     APP_KEY,
+    DRAFT_KEY,
     ensureData,
     saveData,
     makeNote,
@@ -365,6 +459,10 @@
     createManualBackup,
     restoreBackup,
     restoreSeedData,
+    saveDraft,
+    getDraft,
+    clearDraft,
+    pushHistory,
     inferTitle,
     normalizeData,
     clampMastery

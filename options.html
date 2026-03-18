@@ -97,11 +97,28 @@
           <section class="card" id="notesSection">
             <div class="section-head align-start-mobile">
               <div>
-                <p class="section-kicker">Recent Notes</p>
-                <h3 class="section-title">Note vừa cập nhật</h3>
+                <p class="section-kicker">Notes Workspace</p>
+                <h3 class="section-title">Kho ghi chú của bạn</h3>
                 <p class="section-text compact-text" id="notesMetaText"></p>
               </div>
               <div class="section-tools toolbar-wrap">
+                <button class="mini-btn" id="toggleViewBtn">Compact</button>
+              </div>
+            </div>
+
+            <div class="grid-two mini-overview notes-summary-grid" id="notesSummaryGrid"></div>
+
+            <div class="review-toolbar notes-toolbar">
+              <div class="review-tools-grid notes-tools-grid notes-tools-grid-3">
+                <select id="notesTagFilter" class="mini-select">
+                  <option value="all">Tất cả tag</option>
+                </select>
+                <select id="notesStatusFilter" class="mini-select">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="Đang học">Đang học</option>
+                  <option value="Đã lưu">Đã lưu</option>
+                  <option value="Cần ôn">Cần ôn</option>
+                </select>
                 <select id="sortSelect" class="mini-select">
                   <option value="newest">Mới nhất</option>
                   <option value="oldest">Cũ nhất</option>
@@ -109,9 +126,35 @@
                   <option value="masteryHigh">Mastery cao</option>
                   <option value="tagAZ">Tag A-Z</option>
                 </select>
-                <button class="mini-btn" id="toggleViewBtn">Compact</button>
+              </div>
+              <div class="review-helper-row notes-helper-row">
+                <p class="section-text compact-text">Lọc riêng cho Notes mà không ảnh hưởng đến Review.</p>
+                <button class="mini-btn" id="resetNotesFiltersBtn">Đặt lại bộ lọc Notes</button>
               </div>
             </div>
+
+            <div id="pinnedNotesWrap" class="subsection-block hidden">
+              <div class="subsection-head">
+                <div>
+                  <p class="section-kicker">Pinned Spotlight</p>
+                  <h4 class="subsection-title">Note ghim nổi bật</h4>
+                </div>
+                <span class="pill subtle-pill" id="pinnedMetaPill">0 note</span>
+              </div>
+              <div id="pinnedNotesList" class="stack-list compact-stack"></div>
+            </div>
+
+            <div id="weakNotesWrap" class="subsection-block hidden">
+              <div class="subsection-head">
+                <div>
+                  <p class="section-kicker">Need Attention</p>
+                  <h4 class="subsection-title">Note cần chú ý trước</h4>
+                </div>
+                <span class="pill subtle-pill" id="weakMetaPill">0 note</span>
+              </div>
+              <div id="weakNotesList" class="stack-list compact-stack"></div>
+            </div>
+
             <div id="recentNotesList" class="stack-list"></div>
             <div id="emptyState" class="empty-state hidden">Chưa có note phù hợp với bộ lọc hiện tại.</div>
           </section>
@@ -149,13 +192,42 @@
               <div>
                 <p class="section-kicker">Review</p>
                 <h3 class="section-title">Hàng đợi ôn tập</h3>
-                <p class="section-text compact-text">Các note có mastery thấp hoặc được đánh dấu cần ôn.</p>
+                <p class="section-text compact-text">Lọc theo mức ưu tiên, tag và thao tác hàng loạt trên đúng nhóm note bạn đang xem.</p>
               </div>
               <div class="section-tools toolbar-wrap">
-                <button class="mini-btn" id="bulkReviewBtn">Ôn +10 toàn bộ</button>
+                <button class="mini-btn" id="bulkReviewBtn">Ôn +10 nhóm hiện tại</button>
                 <button class="mini-btn" id="bulkCompleteBtn">Đánh dấu đã tiến bộ</button>
               </div>
             </div>
+
+            <div class="grid-two mini-overview review-overview-grid" id="reviewOverview"></div>
+
+            <div class="review-toolbar">
+              <div class="filter-row review-filter-row" id="reviewFilterRow">
+                <button class="chip active" data-review-filter="all">Tất cả</button>
+                <button class="chip" data-review-filter="urgent">Khẩn cấp</button>
+                <button class="chip" data-review-filter="today">Hôm nay</button>
+                <button class="chip" data-review-filter="progressing">Đang tiến bộ</button>
+                <button class="chip" data-review-filter="pinned">Đã ghim</button>
+              </div>
+              <div class="review-tools-grid">
+                <select id="reviewTagFilter" class="mini-select">
+                  <option value="all">Tất cả tag</option>
+                </select>
+                <select id="reviewSortSelect" class="mini-select">
+                  <option value="masteryLow">Ưu tiên mastery thấp</option>
+                  <option value="masteryHigh">Mastery cao dần</option>
+                  <option value="newest">Mới cập nhật</option>
+                  <option value="tagAZ">Tag A-Z</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="review-helper-row">
+              <p class="section-text compact-text" id="reviewMetaText"></p>
+              <button class="mini-btn" id="resetReviewFiltersBtn">Đặt lại bộ lọc</button>
+            </div>
+
             <div id="reviewPanelList" class="stack-list"></div>
           </section>
 
@@ -224,34 +296,81 @@
 
   <div id="editorModal" class="modal hidden">
     <div class="modal-backdrop" data-close="editor"></div>
-    <div class="modal-card">
+    <div class="modal-card modal-card-editor">
       <div class="section-head align-start-mobile">
         <div>
-          <p class="section-kicker accent">Editor</p>
-          <h3 class="section-title">Tạo hoặc sửa note</h3>
+          <p class="section-kicker accent">Editor Pro</p>
+          <h3 class="section-title" id="editorHeading">Tạo hoặc sửa note</h3>
+          <p class="section-text compact-text" id="editorStatusText">Autosave đã tắt.</p>
         </div>
-        <button class="icon-btn" data-close="editor">✕</button>
+        <div class="header-actions">
+          <button class="mini-btn" id="editorFocusBtn">Focus</button>
+          <button class="icon-btn" data-close="editor">✕</button>
+        </div>
       </div>
-      <div class="editor-form">
-        <input id="editTitle" class="capture-input" type="text" placeholder="Tiêu đề note" />
-        <div class="capture-grid three-col">
-          <select id="editTag" class="capture-input"></select>
-          <select id="editStatus" class="capture-input">
-            <option value="Đang học">Đang học</option>
-            <option value="Đã lưu">Đã lưu</option>
-            <option value="Cần ôn">Cần ôn</option>
-          </select>
-          <input id="editMastery" class="capture-input" type="number" min="0" max="100" />
+      <div class="editor-meta-row">
+        <span class="pill subtle-pill" id="editorDraftInfo">Chưa có bản nháp.</span>
+        <div class="inline-actions">
+          <button class="mini-btn" id="restoreDraftBtn">Khôi phục nháp</button>
+          <button class="mini-btn" id="discardDraftBtn">Xóa nháp</button>
         </div>
-        <textarea id="editContent" class="capture-textarea" placeholder="Nội dung note"></textarea>
-        <div class="capture-grid two-col">
-          <label class="check-tile"><input id="editPinned" type="checkbox" /> Ghim</label>
-          <label class="check-tile"><input id="editImportant" type="checkbox" /> Quan trọng</label>
+      </div>
+      <div class="editor-grid">
+        <div class="editor-pane">
+          <div class="editor-form">
+            <input id="editTitle" class="capture-input" type="text" placeholder="Tiêu đề note" />
+            <div class="capture-grid three-col">
+              <select id="editTag" class="capture-input"></select>
+              <select id="editStatus" class="capture-input">
+                <option value="Đang học">Đang học</option>
+                <option value="Đã lưu">Đã lưu</option>
+                <option value="Cần ôn">Cần ôn</option>
+              </select>
+              <input id="editMastery" class="capture-input" type="number" min="0" max="100" />
+            </div>
+            <div class="editor-toolbar">
+              <button class="mini-btn" data-md="h1">H1</button>
+              <button class="mini-btn" data-md="h2">H2</button>
+              <button class="mini-btn" data-md="bullet">• List</button>
+              <button class="mini-btn" data-md="check">☑ Task</button>
+              <button class="mini-btn" data-md="quote">❝ Quote</button>
+              <button class="mini-btn" data-md="code">&lt;/&gt;</button>
+              <button class="mini-btn" data-md="inline">`Code`</button>
+            </div>
+            <textarea id="editContent" class="capture-textarea editor-textarea" placeholder="Nội dung note hỗ trợ markdown nhẹ"></textarea>
+            <div class="capture-grid two-col">
+              <label class="check-tile"><input id="editPinned" type="checkbox" /> Ghim</label>
+              <label class="check-tile"><input id="editImportant" type="checkbox" /> Quan trọng</label>
+            </div>
+          </div>
         </div>
-        <div class="capture-actions">
-          <button class="btn btn-primary grow" id="saveEditBtn">Lưu thay đổi</button>
-          <button class="btn" data-close="editor">Đóng</button>
+        <div class="preview-pane">
+          <div class="preview-card">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Live Preview</p>
+                <h4 class="subsection-title">Xem trước note</h4>
+              </div>
+              <span class="pill subtle-pill" id="previewMeta">Markdown nhẹ</span>
+            </div>
+            <div id="markdownPreview" class="viewer-body markdown-body preview-body"></div>
+          </div>
+          <div class="preview-card history-card">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">Revision</p>
+                <h4 class="subsection-title">Lịch sử chỉnh sửa</h4>
+              </div>
+              <span class="pill subtle-pill" id="historyMeta">0 phiên bản</span>
+            </div>
+            <div id="historyList" class="history-list"></div>
+          </div>
         </div>
+      </div>
+      <div class="capture-actions editor-actions">
+        <button class="btn btn-primary grow" id="saveEditBtn">Lưu thay đổi</button>
+        <button class="btn" id="clearEditorBtn">Làm sạch</button>
+        <button class="btn" data-close="editor">Đóng</button>
       </div>
     </div>
   </div>

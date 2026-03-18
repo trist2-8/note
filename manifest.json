@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Study Note Dashboard V3 Stable",
-  "version": "3.2.0",
+  "name": "Study Note Dashboard V3 Editor Pro Fix",
+  "version": "3.5.1",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlu94vqCmBy440FHG8hJWzsiOBv9HSHAmYWHqscSJoUWq9wSf97fEbm55+VzOZeR77xGbQtuFlLbq3YBo2KQ6UyEzlPMydF7d3yeJcigQL00vaEnQfegD2BmY5k50m8xX5/P73T5xIERuWJ/xRcB54z0JpxReaQh3c1tbeyCBuZex1ka7pDLhlS52FhMPHqUYMZ2vkIQdY0EPMwgHm9o8q++bmeT7m53qzWWy0jF1Pq1qA5BFTUfxskZDGLmHqmZX5DtyxFYuuTFLi9wP5+QhhNGa3dTQg/0Gpvy31qmggao8jU+C/mkZ6xXt2ORYeYqzIY8u527FIzkUT7bzwYnX/QIDAQAB",
-  "description": "Dashboard ghi chú học tập ổn định, có backup tự động và giữ dữ liệu qua các lần cập nhật.",
+  "description": "Dashboard ghi chú học tập với Editor Pro, autosave, preview markdown và backup tự động.",
   "permissions": ["storage"],
   "background": {
     "service_worker": "background.js"
