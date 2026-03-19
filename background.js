@@ -2,6 +2,9 @@ importScripts('shared.js');
 
 async function bootstrap() {
   try {
+    if (!self.StudyStore?.ensureData) {
+      throw new Error('StudyStore chưa sẵn sàng trong service worker.');
+    }
     await self.StudyStore.ensureData();
   } catch (error) {
     console.error('Study Note bootstrap failed:', error);
@@ -9,9 +12,9 @@ async function bootstrap() {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  bootstrap();
+  void bootstrap();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  bootstrap();
+  void bootstrap();
 });

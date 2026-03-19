@@ -1,19 +1,31 @@
 (async () => {
   const store = window.StudyStore;
+  if (!store?.ensureData) {
+    console.error('StudyStore chưa được nạp trong options page.');
+    return;
+  }
   let data = await store.ensureData();
   let activeNav = 'dashboard';
   let activeChip = 'all';
   let reviewFilter = 'all';
+  let reviewSubject = 'all';
   let reviewTag = 'all';
+  let reviewKind = 'all';
+  let notesSubject = 'all';
+  let notesTag = 'all';
+  let notesKind = 'all';
+  let notesStatus = 'all';
   let editingId = null;
   let viewingId = null;
   let compactView = false;
-  let notesTag = 'all';
-  let notesStatus = 'all';
+  let sprintNoteId = null;
+  let sprintReveal = false;
   let editorFocusMode = false;
   let draftCache = null;
   let draftTimer = null;
   let suspendDraftAutosave = false;
+
+  let lastNav = activeNav;
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -22,10 +34,14 @@
     reviewQueueList: $('reviewQueueList'),
     topicsList: $('topicsList'),
     topicCountPill: $('topicCountPill'),
-    recentNotesList: $('recentNotesList'),
     notesSummaryGrid: $('notesSummaryGrid'),
+    recentNotesList: $('recentNotesList'),
+    notesMetaText: $('notesMetaText'),
+    notesSubjectFilter: $('notesSubjectFilter'),
     notesTagFilter: $('notesTagFilter'),
+    notesKindFilter: $('notesKindFilter'),
     notesStatusFilter: $('notesStatusFilter'),
+    sortSelect: $('sortSelect'),
     resetNotesFiltersBtn: $('resetNotesFiltersBtn'),
     pinnedNotesWrap: $('pinnedNotesWrap'),
     pinnedNotesList: $('pinnedNotesList'),
@@ -33,33 +49,58 @@
     weakNotesWrap: $('weakNotesWrap'),
     weakNotesList: $('weakNotesList'),
     weakMetaPill: $('weakMetaPill'),
-    notesMetaText: $('notesMetaText'),
+    emptyState: $('emptyState'),
+    toggleViewBtn: $('toggleViewBtn'),
+    quickTitle: $('quickTitle'),
+    quickSubject: $('quickSubject'),
+    quickTag: $('quickTag'),
+    quickChapter: $('quickChapter'),
+    quickKind: $('quickKind'),
+    quickStatus: $('quickStatus'),
+    quickMastery: $('quickMastery'),
+    quickSource: $('quickSource'),
+    quickContent: $('quickContent'),
+    quickAnswer: $('quickAnswer'),
+    saveQuickBtn: $('saveQuickBtn'),
+    pinQuickBtn: $('pinQuickBtn'),
+    studySprintCard: $('studySprintCard'),
+    sprintMetaPill: $('sprintMetaPill'),
+    sprintQuestionTitle: $('sprintQuestionTitle'),
+    sprintQuestionBody: $('sprintQuestionBody'),
+    sprintAnswerWrap: $('sprintAnswerWrap'),
+    sprintAnswerBody: $('sprintAnswerBody'),
+    revealSprintBtn: $('revealSprintBtn'),
+    rememberSprintBtn: $('rememberSprintBtn'),
+    forgetSprintBtn: $('forgetSprintBtn'),
     tasksList: $('tasksList'),
     taskProgressPill: $('taskProgressPill'),
     newTaskInput: $('newTaskInput'),
     addTaskBtn: $('addTaskBtn'),
     insightText: $('insightText'),
-    reviewPanelList: $('reviewPanelList'),
+    reviewPanel: $('reviewPanel'),
     reviewOverview: $('reviewOverview'),
+    reviewPanelList: $('reviewPanelList'),
     reviewMetaText: $('reviewMetaText'),
+    reviewSubjectFilter: $('reviewSubjectFilter'),
     reviewTagFilter: $('reviewTagFilter'),
+    reviewKindFilter: $('reviewKindFilter'),
     reviewSortSelect: $('reviewSortSelect'),
     resetReviewFiltersBtn: $('resetReviewFiltersBtn'),
+    bulkReviewBtn: $('bulkReviewBtn'),
+    bulkCompleteBtn: $('bulkCompleteBtn'),
+    settingsPanel: $('settingsPanel'),
     backupList: $('backupList'),
     backupStatus: $('backupStatus'),
     storageOverview: $('storageOverview'),
     searchInput: $('searchInput'),
     clearSearchBtn: $('clearSearchBtn'),
-    sortSelect: $('sortSelect'),
-    toggleViewBtn: $('toggleViewBtn'),
-    emptyState: $('emptyState'),
-    quickTitle: $('quickTitle'),
-    quickTag: $('quickTag'),
-    quickStatus: $('quickStatus'),
-    quickMastery: $('quickMastery'),
-    quickContent: $('quickContent'),
-    reviewPanel: $('reviewPanel'),
-    settingsPanel: $('settingsPanel'),
+    openSearchBtn: $('openSearchBtn'),
+    openComposerBtn: $('openComposerBtn'),
+    backupNowBtn: $('backupNowBtn'),
+    restoreLatestBtn: $('restoreLatestBtn'),
+    exportDataBtn: $('exportDataBtn'),
+    restoreSeedBtn: $('restoreSeedBtn'),
+    importFileInput: $('importFileInput'),
     notesSection: $('notesSection'),
     editorModal: $('editorModal'),
     viewerModal: $('viewerModal'),
@@ -70,17 +111,23 @@
     discardDraftBtn: $('discardDraftBtn'),
     editorFocusBtn: $('editorFocusBtn'),
     clearEditorBtn: $('clearEditorBtn'),
+    editTitle: $('editTitle'),
+    editSubject: $('editSubject'),
+    editTag: $('editTag'),
+    editChapter: $('editChapter'),
+    editKind: $('editKind'),
+    editStatus: $('editStatus'),
+    editMastery: $('editMastery'),
+    editSource: $('editSource'),
+    editContent: $('editContent'),
+    editAnswer: $('editAnswer'),
+    editPinned: $('editPinned'),
+    editImportant: $('editImportant'),
     markdownPreview: $('markdownPreview'),
     previewMeta: $('previewMeta'),
     historyList: $('historyList'),
     historyMeta: $('historyMeta'),
-    editTitle: $('editTitle'),
-    editTag: $('editTag'),
-    editStatus: $('editStatus'),
-    editMastery: $('editMastery'),
-    editContent: $('editContent'),
-    editPinned: $('editPinned'),
-    editImportant: $('editImportant'),
+    saveEditBtn: $('saveEditBtn'),
     viewTitle: $('viewTitle'),
     viewMeta: $('viewMeta'),
     viewBadges: $('viewBadges'),
@@ -91,6 +138,54 @@
     viewEditBtn: $('viewEditBtn'),
     toast: $('toast'),
     scrollRoot: $('scrollRoot')
+  };
+
+  const TEMPLATE_MAP = {
+    coding: {
+      subject: 'Lập trình',
+      tag: 'JavaScript',
+      kind: 'code',
+      source: 'Docs',
+      title: 'Template lập trình',
+      preview: '## Ý tưởng chính\n- \n\n## Code mẫu\n```js\n// code của bạn\n```\n\n## Lưu ý\n- ',
+      answer: 'Tóm tắt điều kiện dùng, lỗi dễ gặp và cách sửa.'
+    },
+    math: {
+      subject: 'Toán',
+      tag: 'Math',
+      kind: 'formula',
+      source: 'Lecture',
+      title: 'Template toán',
+      preview: '## Công thức\n- \n\n## Ý nghĩa\n- \n\n## Ví dụ nhanh\n- ',
+      answer: 'Ghi công thức cuối cùng hoặc kết luận ngắn.'
+    },
+    language: {
+      subject: 'Ngoại ngữ',
+      tag: 'English',
+      kind: 'question',
+      source: 'Self-study',
+      title: 'Template ngoại ngữ',
+      preview: '## Từ / cấu trúc\n- \n\n## Nghĩa\n- \n\n## Ví dụ\n- ',
+      answer: 'Ghi nghĩa, cách dùng hoặc mẫu câu cần nhớ.'
+    },
+    theory: {
+      subject: 'Lý thuyết',
+      tag: 'Summary',
+      kind: 'summary',
+      source: 'Lecture',
+      title: 'Template lý thuyết',
+      preview: '## Ý chính\n- \n\n## Giải thích ngắn\n- \n\n## Điều dễ nhầm\n- ',
+      answer: 'Viết 1–2 câu kết luận để ôn nhanh.'
+    },
+    mistake: {
+      subject: 'Lập trình',
+      tag: 'Git & Tools',
+      kind: 'mistake',
+      source: 'Practice',
+      title: 'Template lỗi sai',
+      preview: '## Lỗi gặp phải\n- \n\n## Nguyên nhân\n- \n\n## Cách sửa\n- ',
+      answer: 'Tóm tắt dấu hiệu nhận biết và cách tránh lặp lại.'
+    }
   };
 
   function showToast(message) {
@@ -109,8 +204,8 @@
       .replace(/'/g, '&#39;');
   }
 
-
   function formatTime(ts) {
+    if (!ts) return 'Chưa có';
     return new Date(ts).toLocaleString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
@@ -119,16 +214,9 @@
     });
   }
 
-  function applyInlineMarkdown(text) {
-    return String(text || '')
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  }
-
   function renderMarkdown(source) {
     const input = String(source || '').replace(/\r\n/g, '\n');
-    if (!input.trim()) return '<p class="md-empty">Chưa có nội dung để preview.</p>';
+    if (!input.trim()) return '<p class="md-empty">Chưa có nội dung.</p>';
 
     const fences = [];
     let tokenized = input.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
@@ -142,28 +230,549 @@
     const html = blocks.map((block) => {
       const codeMatch = block.match(/^@@CODE_(\d+)@@$/);
       if (codeMatch) return fences[Number(codeMatch[1])] || '';
-
       const lines = block.split('\n');
       if (lines.every((line) => /^[-*+] \[[ xX]\] /.test(line))) {
         return `<ul class="md-list checklist">${lines.map((line) => {
           const checked = /\[[xX]\]/.test(line);
-          const content = applyInlineMarkdown(line.replace(/^[-*+] \[[ xX]\] /, ''));
+          const content = line.replace(/^[-*+] \[[ xX]\] /, '');
           return `<li class="${checked ? 'checked' : ''}"><span class="check-dot">${checked ? '✓' : ''}</span><span>${content}</span></li>`;
         }).join('')}</ul>`;
       }
       if (lines.every((line) => /^[-*+] /.test(line))) {
-        return `<ul class="md-list">${lines.map((line) => `<li>${applyInlineMarkdown(line.replace(/^[-*+] /, ''))}</li>`).join('')}</ul>`;
+        return `<ul class="md-list">${lines.map((line) => `<li>${line.replace(/^[-*+] /, '')}</li>`).join('')}</ul>`;
       }
       if (lines.every((line) => /^> /.test(line))) {
-        return `<blockquote class="md-quote">${lines.map((line) => applyInlineMarkdown(line.replace(/^> /, ''))).join('<br />')}</blockquote>`;
+        return `<blockquote class="md-quote">${lines.map((line) => line.replace(/^> /, '')).join('<br />')}</blockquote>`;
       }
-      if (/^###\s+/.test(block)) return `<h3>${applyInlineMarkdown(block.replace(/^###\s+/, ''))}</h3>`;
-      if (/^##\s+/.test(block)) return `<h2>${applyInlineMarkdown(block.replace(/^##\s+/, ''))}</h2>`;
-      if (/^#\s+/.test(block)) return `<h1>${applyInlineMarkdown(block.replace(/^#\s+/, ''))}</h1>`;
-      return `<p>${lines.map((line) => applyInlineMarkdown(line)).join('<br />')}</p>`;
+      if (/^###\s+/.test(block)) return `<h3>${block.replace(/^###\s+/, '')}</h3>`;
+      if (/^##\s+/.test(block)) return `<h2>${block.replace(/^##\s+/, '')}</h2>`;
+      if (/^#\s+/.test(block)) return `<h1>${block.replace(/^#\s+/, '')}</h1>`;
+      return `<p>${lines.join('<br />')}</p>`;
     }).join('');
 
     return html.replace(/@@CODE_(\d+)@@/g, (_, index) => fences[Number(index)] || '');
+  }
+
+  function subjects() {
+    return [...new Set([...(store.DEFAULT_SUBJECTS || []), ...data.notes.map((note) => note.subject)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+  }
+
+  function tags() {
+    return [...new Set([...(data.tags || []), ...data.notes.map((note) => note.tag)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+  }
+
+  function kinds() {
+    return store.NOTE_KINDS || [];
+  }
+
+  function reviewNotes() {
+    return [...data.notes].filter((note) => note.review || store.isDue(note)).sort((a, b) => {
+      const aDue = noteDueValue(a);
+      const bDue = noteDueValue(b);
+      return aDue - bDue || a.mastery - b.mastery || b.updatedAt - a.updatedAt;
+    });
+  }
+
+  function noteDueValue(note) {
+    return typeof note.nextReviewAt === 'number' ? note.nextReviewAt : Number.MAX_SAFE_INTEGER;
+  }
+
+  function filteredReviewNotes() {
+    let notes = reviewNotes();
+    const search = els.searchInput.value.trim().toLowerCase();
+    if (search) notes = notes.filter((note) => searchable(note).includes(search));
+    if (reviewFilter !== 'all') notes = notes.filter((note) => reviewBucket(note) === reviewFilter);
+    if (reviewSubject !== 'all') notes = notes.filter((note) => note.subject === reviewSubject);
+    if (reviewTag !== 'all') notes = notes.filter((note) => note.tag === reviewTag);
+    if (reviewKind !== 'all') notes = notes.filter((note) => note.kind === reviewKind);
+    switch (els.reviewSortSelect.value) {
+      case 'masteryHigh':
+        notes.sort((a, b) => b.mastery - a.mastery || noteDueValue(a) - noteDueValue(b));
+        break;
+      case 'newest':
+        notes.sort((a, b) => b.updatedAt - a.updatedAt);
+        break;
+      case 'tagAZ':
+        notes.sort((a, b) => a.tag.localeCompare(b.tag, 'vi') || a.mastery - b.mastery);
+        break;
+      default:
+        notes.sort((a, b) => a.mastery - b.mastery || noteDueValue(a) - noteDueValue(b));
+    }
+    return notes;
+  }
+
+  function filteredNotes() {
+    const search = els.searchInput.value.trim().toLowerCase();
+    let notes = [...data.notes];
+    if (search) notes = notes.filter((note) => searchable(note).includes(search));
+    if (activeChip === 'review') notes = notes.filter((note) => note.review || store.isDue(note));
+    if (activeChip === 'pinned') notes = notes.filter((note) => note.pinned);
+    if (activeChip === 'important') notes = notes.filter((note) => note.important);
+    if (notesSubject !== 'all') notes = notes.filter((note) => note.subject === notesSubject);
+    if (notesTag !== 'all') notes = notes.filter((note) => note.tag === notesTag);
+    if (notesKind !== 'all') notes = notes.filter((note) => note.kind === notesKind);
+    if (notesStatus !== 'all') notes = notes.filter((note) => note.status === notesStatus);
+
+    switch (els.sortSelect.value) {
+      case 'oldest':
+        notes.sort((a, b) => a.createdAt - b.createdAt);
+        break;
+      case 'masteryLow':
+        notes.sort((a, b) => a.mastery - b.mastery || b.updatedAt - a.updatedAt);
+        break;
+      case 'masteryHigh':
+        notes.sort((a, b) => b.mastery - a.mastery || b.updatedAt - a.updatedAt);
+        break;
+      case 'tagAZ':
+        notes.sort((a, b) => a.tag.localeCompare(b.tag, 'vi') || b.updatedAt - a.updatedAt);
+        break;
+      default:
+        notes.sort((a, b) => b.updatedAt - a.updatedAt);
+    }
+    return notes;
+  }
+
+  function searchable(note) {
+    return [note.title, note.subject, note.chapter, note.tag, note.kind, note.source, note.answer, note.preview].join(' ').toLowerCase();
+  }
+
+  function reviewBucket(note) {
+    if (note.mastery < 35 || store.isDue(note)) return 'urgent';
+    if (note.mastery < 55) return 'today';
+    return 'progressing';
+  }
+
+  function notePriorityText(note) {
+    if (store.isDue(note)) return 'Đến hạn';
+    if (note.important) return 'Quan trọng';
+    if (note.review) return 'Cần ôn';
+    return note.status;
+  }
+
+  function noteStateBadges(note) {
+    const items = [
+      `<span class="state-badge ${note.review || store.isDue(note) ? 'warn' : 'good'}">${esc(note.status)}</span>`,
+      `<span class="state-badge info">${esc(store.kindLabel(note.kind))}</span>`
+    ];
+    if (note.subject) items.push(`<span class="state-badge">${esc(note.subject)}</span>`);
+    if (note.chapter) items.push(`<span class="state-badge">${esc(note.chapter)}</span>`);
+    if (note.pinned) items.push('<span class="state-badge info">Đã ghim</span>');
+    if (note.important) items.push('<span class="state-badge warn">Quan trọng</span>');
+    if (note.reviewCount) items.push(`<span class="state-badge">Ôn ${note.reviewCount} lần</span>`);
+    return items.join('');
+  }
+
+  function noteMiniCard(note, label = '') {
+    return `
+      <div class="queue-item compact">
+        <div class="queue-rank mini">${label ? esc(label) : '•'}</div>
+        <div class="queue-body">
+          <p class="queue-title">${esc(note.title)}</p>
+          <p class="queue-sub">${esc(note.subject)} · ${esc(note.tag)} · ${esc(store.kindLabel(note.kind))} · ${esc(store.dueLabel(note.nextReviewAt))}</p>
+        </div>
+        <div class="inline-actions">
+          <button class="link-btn" data-view-id="${esc(note.id)}">Mở</button>
+          <button class="link-btn muted-link" data-edit-id="${esc(note.id)}">Sửa</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function noteCard(note, { reviewMode = false } = {}) {
+    return `
+      <article class="note-card ${compactView ? 'compact-note' : ''}">
+        <div class="note-top">
+          <div class="min-zero">
+            <div class="note-title-row">
+              <h4 class="note-title">${esc(note.title)}</h4>
+              <span class="tag-pill">${esc(note.tag)}</span>
+            </div>
+            <p class="note-time">${esc(note.subject)}${note.chapter ? ` · ${esc(note.chapter)}` : ''} · ${esc(store.dueLabel(note.nextReviewAt))}</p>
+          </div>
+          <span class="priority-pill">${esc(notePriorityText(note))}</span>
+        </div>
+        <p class="note-preview">${esc(note.preview || note.answer || '')}</p>
+        <div class="note-flags">${noteStateBadges(note)}</div>
+        <div class="mastery-row spread-row">
+          <span>Mastery</span>
+          <span>${note.mastery}%</span>
+        </div>
+        <div class="mastery-bar"><div class="mastery-fill" style="width:${note.mastery}%"></div></div>
+        <div class="note-actions">
+          <div class="action-group">
+            <button class="mini-action" data-view-id="${esc(note.id)}">Mở lại</button>
+            <button class="mini-action muted" data-edit-id="${esc(note.id)}">Sửa</button>
+            <button class="mini-action muted" data-duplicate-id="${esc(note.id)}">Nhân bản</button>
+            ${reviewMode ? `<button class="mini-action" data-review-id="${esc(note.id)}">Ôn +10</button>` : ''}
+          </div>
+          <div class="action-group">
+            <button class="icon-action" title="Ghim" data-pin-id="${esc(note.id)}">📌</button>
+            <button class="icon-action" title="Quan trọng" data-important-id="${esc(note.id)}">⭐</button>
+            <button class="icon-action" title="Xóa" data-delete-id="${esc(note.id)}">🗑</button>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  function subjectSummary() {
+    const map = new Map();
+    data.notes.forEach((note) => {
+      if (!map.has(note.subject)) map.set(note.subject, []);
+      map.get(note.subject).push(note);
+    });
+    return [...map.entries()].map(([name, items]) => ({
+      name,
+      count: items.length,
+      avgMastery: Math.round(items.reduce((sum, note) => sum + note.mastery, 0) / items.length),
+      due: items.filter((note) => note.review || store.isDue(note)).length,
+      chapters: new Set(items.map((note) => note.chapter).filter(Boolean)).size,
+      strongest: [...items].sort((a, b) => b.mastery - a.mastery)[0]?.title || ''
+    })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'vi'));
+  }
+
+  function weakNote() {
+    return [...data.notes].sort((a, b) => a.mastery - b.mastery || noteDueValue(a) - noteDueValue(b))[0] || null;
+  }
+
+  function renderOverview() {
+    const total = data.notes.length;
+    const due = data.notes.filter((note) => note.review || store.isDue(note)).length;
+    const pinned = data.notes.filter((note) => note.pinned).length;
+    const avgMastery = total ? Math.round(data.notes.reduce((sum, note) => sum + note.mastery, 0) / total) : 0;
+    const items = [
+      { label: 'Tổng note', value: total, hint: `${subjectSummary().length} môn đang học` },
+      { label: 'Cần ôn', value: due, hint: `${data.notes.filter((note) => store.isDue(note)).length} note đến hạn` },
+      { label: 'Đã ghim', value: pinned, hint: `${data.notes.filter((note) => note.important).length} note quan trọng` },
+      { label: 'Mastery TB', value: `${avgMastery}%`, hint: 'độ chắc kiến thức hiện tại' }
+    ];
+    els.overviewGrid.innerHTML = items.map((item) => `
+      <div class="overview-card">
+        <p class="overview-label">${esc(item.label)}</p>
+        <div class="overview-row">
+          <p class="overview-value">${esc(item.value)}</p>
+          <div class="overview-dot">●</div>
+        </div>
+        <p class="overview-hint">${esc(item.hint)}</p>
+      </div>
+    `).join('');
+  }
+
+  function renderTodayFocus() {
+    const weakest = weakNote();
+    const reviewQueue = reviewNotes().slice(0, 3);
+    const latestBackup = data.backups?.[0];
+    const backupText = latestBackup ? new Date(latestBackup.createdAt).toLocaleDateString('vi-VN') : 'Chưa có';
+    if (!weakest) {
+      els.todayFocusCard.innerHTML = `
+        <div class="hero-row">
+          <div class="hero-copy">
+            <p class="section-kicker accent">Today Focus</p>
+            <h2 class="hero-title">Bắt đầu lưu note đầu tiên</h2>
+            <p class="hero-text">Tạo note đầu tiên để dashboard bắt đầu tính toán review queue, tiến độ theo môn và Study Sprint.</p>
+          </div>
+          <div class="hero-statbox">
+            <div class="hero-kpi"><span>Backup</span><strong>${esc(backupText)}</strong></div>
+          </div>
+        </div>`;
+      return;
+    }
+    els.todayFocusCard.innerHTML = `
+      <div class="hero-row">
+        <div class="hero-copy">
+          <p class="section-kicker accent">Today Focus</p>
+          <h2 class="hero-title">Ưu tiên note “${esc(weakest.title)}” trước</h2>
+          <p class="hero-text">${esc(weakest.subject)}${weakest.chapter ? ` · ${esc(weakest.chapter)}` : ''} · ${esc(store.kindLabel(weakest.kind))}. Mastery hiện tại ${weakest.mastery}% và lịch ôn là ${esc(store.dueLabel(weakest.nextReviewAt))}.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" data-focus-open="${esc(weakest.id)}">Mở note</button>
+            <button class="btn" data-focus-review="${esc(weakest.id)}">Ôn +10</button>
+          </div>
+        </div>
+        <div class="hero-statbox">
+          <div class="hero-kpi"><span>Đến hạn</span><strong>${reviewNotes().length}</strong></div>
+          <div class="hero-kpi"><span>Backup</span><strong>${esc(backupText)}</strong></div>
+          <div class="hero-pill-list">
+            ${reviewQueue.map((note) => `<span class="pill subtle-pill">${esc(note.tag)}</span>`).join('') || '<span class="pill subtle-pill">Chưa có hàng đợi</span>'}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderReviewQueue() {
+    const queue = reviewNotes().slice(0, 5);
+    els.reviewQueueList.innerHTML = queue.length
+      ? queue.map((note, index) => noteMiniCard(note, String(index + 1).padStart(2, '0'))).join('')
+      : '<div class="empty-mini">Không có note cần ôn.</div>';
+
+    const reviewList = filteredReviewNotes();
+    const urgentCount = reviewList.filter((note) => reviewBucket(note) === 'urgent').length;
+    const todayCount = reviewList.filter((note) => reviewBucket(note) === 'today').length;
+    const progressingCount = reviewList.filter((note) => reviewBucket(note) === 'progressing').length;
+    const avgStage = reviewList.length ? Math.round(reviewList.reduce((sum, note) => sum + (note.studyStage || 0), 0) / reviewList.length) : 0;
+
+    const cards = [
+      { label: 'Đang lọc', value: reviewList.length, hint: `${urgentCount} khẩn cấp` },
+      { label: 'Hôm nay', value: todayCount, hint: `${progressingCount} đang tiến bộ` },
+      { label: 'Stage TB', value: avgStage, hint: 'mức ôn lặp lại' },
+      { label: 'Khẩn cấp', value: urgentCount, hint: 'nên ôn trước' }
+    ];
+    els.reviewOverview.innerHTML = cards.map((item) => `
+      <div class="overview-card">
+        <p class="overview-label">${esc(item.label)}</p>
+        <div class="overview-row">
+          <p class="overview-value">${esc(item.value)}</p>
+          <div class="overview-dot">●</div>
+        </div>
+        <p class="overview-hint">${esc(item.hint)}</p>
+      </div>
+    `).join('');
+    els.reviewMetaText.textContent = `${reviewList.length} note phù hợp bộ lọc review hiện tại.`;
+    els.reviewPanelList.innerHTML = reviewList.length
+      ? reviewList.map((note) => noteCard(note, { reviewMode: true })).join('')
+      : '<div class="empty-mini">Không có note phù hợp bộ lọc review.</div>';
+  }
+
+  function renderTopics() {
+    const items = subjectSummary();
+    els.topicCountPill.textContent = `${items.length} môn`;
+    els.topicsList.innerHTML = items.length ? items.map((item) => `
+      <div class="topic-card">
+        <div class="spread-row">
+          <div>
+            <p class="topic-title">${esc(item.name)}</p>
+            <p class="topic-meta">${item.count} note · ${item.chapters} chương · ${item.due} cần ôn</p>
+          </div>
+          <span class="pill subtle-pill">${item.avgMastery}%</span>
+        </div>
+        <div class="mastery-bar"><div class="mastery-fill" style="width:${item.avgMastery}%"></div></div>
+        <p class="topic-foot">Note chắc nhất: ${esc(item.strongest || 'Chưa có')}</p>
+      </div>
+    `).join('') : '<div class="empty-mini">Chưa có dữ liệu môn học.</div>';
+  }
+
+  function renderNotes() {
+    const notes = filteredNotes();
+    const pinned = notes.filter((note) => note.pinned).slice(0, 3);
+    const weakest = [...notes].sort((a, b) => a.mastery - b.mastery).slice(0, 3);
+    const uniqueChapters = new Set(notes.map((note) => note.chapter).filter(Boolean)).size;
+    const cards = [
+      { label: 'Đang xem', value: notes.length, hint: `${uniqueChapters} chương/bài` },
+      { label: 'Đến hạn', value: notes.filter((note) => store.isDue(note)).length, hint: 'ưu tiên ôn trước' },
+      { label: 'Câu hỏi', value: notes.filter((note) => note.kind === 'question').length, hint: 'hợp cho quiz nhanh' },
+      { label: 'Công thức', value: notes.filter((note) => note.kind === 'formula').length, hint: 'nên ôn lặp lại' }
+    ];
+    els.notesSummaryGrid.innerHTML = cards.map((item) => `
+      <div class="overview-card">
+        <p class="overview-label">${esc(item.label)}</p>
+        <div class="overview-row">
+          <p class="overview-value">${esc(item.value)}</p>
+          <div class="overview-dot">●</div>
+        </div>
+        <p class="overview-hint">${esc(item.hint)}</p>
+      </div>
+    `).join('');
+
+    els.notesMetaText.textContent = `${notes.length} note khớp bộ lọc · ${data.notes.length} note tổng cộng.`;
+
+    els.pinnedNotesWrap.classList.toggle('hidden', !pinned.length);
+    els.weakNotesWrap.classList.toggle('hidden', !weakest.length);
+    els.pinnedMetaPill.textContent = `${pinned.length} note`;
+    els.weakMetaPill.textContent = `${weakest.length} note`;
+    els.pinnedNotesList.innerHTML = pinned.map((note) => noteMiniCard(note)).join('');
+    els.weakNotesList.innerHTML = weakest.map((note) => noteMiniCard(note)).join('');
+
+    els.recentNotesList.innerHTML = notes.length ? notes.map((note) => noteCard(note)).join('') : '';
+    els.emptyState.classList.toggle('hidden', Boolean(notes.length));
+    els.clearSearchBtn.classList.toggle('hidden', !els.searchInput.value.trim());
+    els.toggleViewBtn.textContent = compactView ? 'Expanded' : 'Compact';
+  }
+
+  function renderTasks() {
+    const tasks = data.tasks || [];
+    const done = tasks.filter((task) => task.done).length;
+    els.taskProgressPill.textContent = `${done}/${tasks.length} hoàn thành`;
+    els.tasksList.innerHTML = tasks.length
+      ? tasks.map((task) => `
+        <label class="task-card">
+          <input type="checkbox" data-task-id="${esc(task.id)}" ${task.done ? 'checked' : ''} />
+          <span>${esc(task.text)}</span>
+          <button class="icon-action" type="button" data-task-delete="${esc(task.id)}">🗑</button>
+        </label>
+      `).join('')
+      : '<div class="empty-mini">Chưa có mục tiêu hôm nay.</div>';
+  }
+
+  function renderInsight() {
+    const review = reviewNotes();
+    const topSubject = subjectSummary()[0];
+    const weakest = weakNote();
+    const line1 = review.length ? `Bạn đang có ${review.length} note cần ôn. Hãy xử lý nhóm đến hạn trước để không bị dồn backlog.` : 'Hiện chưa có note đến hạn. Đây là lúc tốt để tạo note mới hoặc củng cố note quan trọng.';
+    const line2 = topSubject ? `Môn đang chiếm nhiều note nhất là ${topSubject.name} với ${topSubject.count} note và mastery trung bình ${topSubject.avgMastery}%.` : '';
+    const line3 = weakest ? `Note yếu nhất hiện tại là “${weakest.title}” (${weakest.mastery}%). Nên đưa nó vào 1–2 vòng Study Sprint trước khi học thêm nội dung mới.` : '';
+    els.insightText.textContent = [line1, line2, line3].filter(Boolean).join(' ');
+  }
+
+  function sprintQueue() {
+    const due = reviewNotes();
+    if (due.length) return due;
+    return [...data.notes].sort((a, b) => a.mastery - b.mastery || b.updatedAt - a.updatedAt).slice(0, 10);
+  }
+
+  function sprintNote() {
+    const queue = sprintQueue();
+    if (!queue.length) return null;
+    const existing = queue.find((note) => note.id === sprintNoteId);
+    if (existing) return existing;
+    sprintNoteId = queue[0].id;
+    return queue[0];
+  }
+
+  function sprintQuestionFor(note) {
+    const body = note.kind === 'question'
+      ? (note.preview || 'Hãy tự trả lời câu hỏi này.')
+      : (note.chapter ? `Nhắc lại kiến thức ở phần ${note.chapter}.` : 'Nhắc lại ý chính hoặc giải thích ngắn gọn.');
+    return {
+      title: note.kind === 'question' ? note.title : `Nhắc lại: ${note.title}`,
+      body,
+      answer: note.answer || note.preview || 'Chưa có đáp án/mặt sau riêng.'
+    };
+  }
+
+  function renderStudySprint() {
+    const note = sprintNote();
+    const queue = sprintQueue();
+    els.sprintMetaPill.textContent = `${queue.length} note`;
+    if (!note) {
+      els.sprintQuestionTitle.textContent = 'Chưa có câu hỏi';
+      els.sprintQuestionBody.textContent = 'Thêm note để bắt đầu Study Sprint.';
+      els.sprintAnswerWrap.classList.add('hidden');
+      return;
+    }
+    const sprint = sprintQuestionFor(note);
+    els.sprintQuestionTitle.textContent = sprint.title;
+    els.sprintQuestionBody.textContent = sprint.body;
+    els.sprintAnswerBody.innerHTML = renderMarkdown(sprint.answer);
+    els.sprintAnswerWrap.classList.toggle('hidden', !sprintReveal);
+    els.revealSprintBtn.textContent = sprintReveal ? 'Ẩn đáp án' : 'Lật đáp án';
+  }
+
+  function fillSelects() {
+    const subjectOptions = subjects();
+    const tagOptions = tags();
+    const kindOptions = kinds();
+
+    const subjectHtml = subjectOptions.map((subject) => `<option value="${esc(subject)}">${esc(subject)}</option>`).join('');
+    const tagHtml = tagOptions.map((tag) => `<option value="${esc(tag)}">${esc(tag)}</option>`).join('');
+    const kindHtml = kindOptions.map((kind) => `<option value="${esc(kind)}">${esc(store.kindLabel(kind))}</option>`).join('');
+
+    [els.quickSubject, els.editSubject].forEach((select) => {
+      const current = select.value;
+      select.innerHTML = subjectHtml;
+      if (current && subjectOptions.includes(current)) select.value = current;
+    });
+    [els.quickTag, els.editTag].forEach((select) => {
+      const current = select.value;
+      select.innerHTML = tagHtml;
+      if (current && tagOptions.includes(current)) select.value = current;
+    });
+    [els.quickKind, els.editKind].forEach((select) => {
+      const current = select.value;
+      select.innerHTML = kindHtml;
+      if (current && kindOptions.includes(current)) select.value = current;
+    });
+
+    const notesSubjectPrev = notesSubject;
+    const reviewSubjectPrev = reviewSubject;
+    const notesTagPrev = notesTag;
+    const reviewTagPrev = reviewTag;
+    const notesKindPrev = notesKind;
+    const reviewKindPrev = reviewKind;
+
+    els.notesSubjectFilter.innerHTML = `<option value="all">Tất cả môn</option>${subjectHtml}`;
+    els.reviewSubjectFilter.innerHTML = `<option value="all">Tất cả môn</option>${subjectHtml}`;
+    els.notesTagFilter.innerHTML = `<option value="all">Tất cả tag</option>${tagHtml}`;
+    els.reviewTagFilter.innerHTML = `<option value="all">Tất cả tag</option>${tagHtml}`;
+    els.notesKindFilter.innerHTML = `<option value="all">Tất cả loại</option>${kindHtml}`;
+    els.reviewKindFilter.innerHTML = `<option value="all">Tất cả loại</option>${kindHtml}`;
+
+    els.notesSubjectFilter.value = subjectOptions.includes(notesSubjectPrev) ? notesSubjectPrev : 'all';
+    notesSubject = els.notesSubjectFilter.value;
+    els.reviewSubjectFilter.value = subjectOptions.includes(reviewSubjectPrev) ? reviewSubjectPrev : 'all';
+    reviewSubject = els.reviewSubjectFilter.value;
+
+    els.notesTagFilter.value = tagOptions.includes(notesTagPrev) ? notesTagPrev : 'all';
+    notesTag = els.notesTagFilter.value;
+    els.reviewTagFilter.value = tagOptions.includes(reviewTagPrev) ? reviewTagPrev : 'all';
+    reviewTag = els.reviewTagFilter.value;
+
+    els.notesKindFilter.value = kindOptions.includes(notesKindPrev) ? notesKindPrev : 'all';
+    notesKind = els.notesKindFilter.value;
+    els.reviewKindFilter.value = kindOptions.includes(reviewKindPrev) ? reviewKindPrev : 'all';
+    reviewKind = els.reviewKindFilter.value;
+
+    if (!els.quickSubject.value && subjectOptions.length) els.quickSubject.value = subjectOptions[0];
+    if (!els.quickTag.value && tagOptions.length) els.quickTag.value = tagOptions[0];
+    if (!els.quickKind.value) els.quickKind.value = 'concept';
+    if (!els.editSubject.value && subjectOptions.length) els.editSubject.value = subjectOptions[0];
+    if (!els.editTag.value && tagOptions.length) els.editTag.value = tagOptions[0];
+    if (!els.editKind.value) els.editKind.value = 'concept';
+  }
+
+  function renderBackups() {
+    const backups = data.backups || [];
+    els.backupStatus.textContent = backups.length
+      ? `Backup gần nhất: ${new Date(backups[0].createdAt).toLocaleString('vi-VN')} · ${backups[0].label}`
+      : 'Chưa có backup.';
+
+    els.backupList.innerHTML = backups.length
+      ? backups.map((backup) => `
+        <div class="queue-item">
+          <div class="queue-rank">⟲</div>
+          <div class="queue-body">
+            <p class="queue-title">${esc(backup.label)}</p>
+            <p class="queue-sub">${new Date(backup.createdAt).toLocaleString('vi-VN')}</p>
+          </div>
+          <div class="inline-actions">
+            <button class="link-btn" data-restore-id="${esc(backup.id)}">Khôi phục</button>
+            <button class="link-btn muted-link" data-export-backup-id="${esc(backup.id)}">Xuất</button>
+          </div>
+        </div>
+      `).join('')
+      : `<div class="empty-mini">Chưa có backup nào.</div>`;
+
+    const payloadSize = new Blob([JSON.stringify(data)]).size / 1024;
+    const cards = [
+      { label: 'Version', value: store.VERSION, hint: 'manifest + schema' },
+      { label: 'Dung lượng', value: `${payloadSize.toFixed(1)} KB`, hint: 'ước tính dữ liệu hiện tại' },
+      { label: 'Tags', value: data.tags.length, hint: 'đang dùng trong dashboard' },
+      { label: 'Backups', value: backups.length, hint: 'đang lưu cục bộ' }
+    ];
+    els.storageOverview.innerHTML = cards.map((item) => `
+      <div class="overview-card">
+        <p class="overview-label">${esc(item.label)}</p>
+        <div class="overview-row">
+          <p class="overview-value">${esc(item.value)}</p>
+          <div class="overview-dot">●</div>
+        </div>
+        <p class="overview-hint">${esc(item.hint)}</p>
+      </div>
+    `).join('');
+  }
+
+  function renderViewer() {
+    const note = data.notes.find((item) => item.id === viewingId);
+    if (!note) {
+      els.viewerModal.classList.add('hidden');
+      return;
+    }
+    const answerBlock = note.answer ? `\n<hr class="viewer-sep" />\n<h3>Đáp án / mặt sau</h3>\n${renderMarkdown(note.answer)}` : '';
+    els.viewTitle.textContent = note.title;
+    els.viewMeta.textContent = `${note.subject} · ${note.chapter || 'Chưa gắn chương'} · ${note.tag} · ${store.kindLabel(note.kind)} · ${store.dueLabel(note.nextReviewAt)}`;
+    els.viewBadges.innerHTML = noteStateBadges(note);
+    els.viewBody.innerHTML = `${renderMarkdown(note.preview)}${answerBlock}`;
+    els.viewReviewBtn.textContent = note.review || store.isDue(note) ? 'Ôn +10' : 'Tăng +10';
+    els.viewPinBtn.textContent = note.pinned ? 'Bỏ ghim' : 'Ghim';
+    els.viewImportantBtn.textContent = note.important ? 'Bỏ quan trọng' : 'Quan trọng';
   }
 
   function editorTargetId() {
@@ -174,13 +783,22 @@
     return {
       noteId: editorTargetId(),
       title: els.editTitle.value.trim(),
+      subject: els.editSubject.value,
+      chapter: els.editChapter.value.trim(),
       tag: els.editTag.value,
+      kind: els.editKind.value,
+      source: els.editSource.value.trim(),
+      answer: els.editAnswer.value.trim(),
       status: els.editStatus.value,
       mastery: els.editMastery.value,
       preview: els.editContent.value,
       pinned: els.editPinned.checked,
       important: els.editImportant.checked
     };
+  }
+
+  function editorHasContent(payload = currentEditorPayload()) {
+    return Boolean(payload.title || payload.preview || payload.answer);
   }
 
   function setEditorStatus(message) {
@@ -191,17 +809,18 @@
     els.editorDraftInfo.textContent = message;
   }
 
-  function editorHasContent(payload = currentEditorPayload()) {
-    return Boolean(payload.title.trim() || payload.preview.trim());
-  }
-
   function applyEditorState(payload = {}) {
     suspendDraftAutosave = true;
     els.editTitle.value = payload.title || '';
+    if (payload.subject) els.editSubject.value = payload.subject;
     if (payload.tag) els.editTag.value = payload.tag;
+    els.editChapter.value = payload.chapter || '';
+    els.editKind.value = payload.kind || 'concept';
     els.editStatus.value = payload.status || 'Đang học';
     els.editMastery.value = payload.mastery ?? 60;
+    els.editSource.value = payload.source || '';
     els.editContent.value = payload.preview || '';
+    els.editAnswer.value = payload.answer || '';
     els.editPinned.checked = !!payload.pinned;
     els.editImportant.checked = !!payload.important;
     suspendDraftAutosave = false;
@@ -211,9 +830,15 @@
   function updateEditorPreview() {
     const payload = currentEditorPayload();
     const content = payload.preview.trim();
-    els.markdownPreview.innerHTML = renderMarkdown(content || payload.title || '');
-    const length = content.length;
-    els.previewMeta.textContent = `${length} ký tự · ${Math.max(1, Math.ceil(length / 420))} phút đọc`;
+    const answer = payload.answer.trim();
+    const previewHtml = [
+      payload.title ? `<h2>${esc(payload.title)}</h2>` : '',
+      content ? renderMarkdown(content) : '<p class="md-empty">Chưa có nội dung để preview.</p>',
+      answer ? `<hr class="viewer-sep" /><h3>Đáp án / mặt sau</h3>${renderMarkdown(answer)}` : ''
+    ].join('');
+    els.markdownPreview.innerHTML = previewHtml;
+    const totalChars = content.length + answer.length;
+    els.previewMeta.textContent = `${totalChars} ký tự · ${Math.max(1, Math.ceil(totalChars / 420))} phút đọc`;
   }
 
   async function saveEditorDraft(force = false) {
@@ -255,14 +880,14 @@
     const history = Array.isArray(note?.history) ? note.history : [];
     els.historyMeta.textContent = `${history.length} phiên bản`;
     if (!history.length) {
-      els.historyList.innerHTML = '<div class="empty-mini">Chưa có revision nào. Lưu note ít nhất 1 lần để tạo lịch sử chỉnh sửa.</div>';
+      els.historyList.innerHTML = '<div class="empty-mini">Chưa có revision nào.</div>';
       return;
     }
     els.historyList.innerHTML = history.map((item, index) => `
       <div class="history-item">
         <div class="history-copy">
           <p class="history-title">${esc(item.label || `Revision ${index + 1}`)}</p>
-          <p class="history-meta">${formatTime(item.updatedAt)} · ${esc(item.tag)} · ${item.mastery}%</p>
+          <p class="history-meta">${formatTime(item.updatedAt)} · ${esc(item.subject)} · ${esc(item.tag)}</p>
         </div>
         <button class="mini-btn" data-history-index="${index}">Khôi phục</button>
       </div>
@@ -272,470 +897,43 @@
   async function restoreDraftIntoEditor() {
     const draft = await refreshDraftCache();
     if (!draft) {
-      showToast('Chưa có bản nháp để khôi phục');
-      return;
-    }
-    if (draft.noteId !== editorTargetId()) {
-      showToast('Bản nháp này thuộc note khác');
+      showToast('Chưa có nháp để khôi phục');
       return;
     }
     applyEditorState(draft);
-    setEditorStatus(`Đã khôi phục nháp · ${formatTime(draft.updatedAt)}`);
+    setEditorStatus(`Đã nạp bản nháp · ${formatTime(draft.updatedAt)}`);
   }
 
   async function clearEditorDraft(showMessage = true) {
-    draftCache = null;
     await store.clearDraft();
+    draftCache = null;
     setDraftInfo('Chưa có bản nháp.');
-    if (showMessage) setEditorStatus('Đã xóa bản nháp.');
+    if (showMessage) {
+      setEditorStatus('Đã xóa bản nháp.');
+      showToast('Đã xóa bản nháp');
+    }
   }
 
   function insertMarkdown(type) {
-    const textarea = els.editContent;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const value = textarea.value;
-    const selected = value.slice(start, end);
     const map = {
-      h1: `# ${selected || 'Tiêu đề lớn'}`,
-      h2: `## ${selected || 'Tiêu đề nhỏ'}`,
-      bullet: `- ${selected || 'Ý chính'}`,
-      check: `- [ ] ${selected || 'Việc cần làm'}`,
-      quote: `> ${selected || 'Ghi chú quan trọng'}`,
-      code: `
-\`\`\`js
-${selected || '// code của bạn'}
-\`\`\`
-`,
-      inline: `\`${selected || 'code'}\``
+      h1: '# ',
+      h2: '## ',
+      bullet: '- ',
+      check: '- [ ] ',
+      quote: '> ',
+      code: '```js\n\n```',
+      inline: '`code`'
     };
-    const snippet = map[type] || selected;
-    textarea.value = `${value.slice(0, start)}${snippet}${value.slice(end)}`;
-    const cursor = start + snippet.length;
-    textarea.focus();
-    textarea.setSelectionRange(cursor, cursor);
+    const token = map[type] || '';
+    const area = els.editContent;
+    const start = area.selectionStart;
+    const end = area.selectionEnd;
+    const value = area.value;
+    area.value = `${value.slice(0, start)}${token}${value.slice(end)}`;
+    area.focus();
+    area.selectionStart = area.selectionEnd = start + token.length;
     updateEditorPreview();
     scheduleDraftSave();
-  }
-
-  function weakNote() {
-    return [...data.notes].sort((a, b) => a.mastery - b.mastery)[0] || null;
-  }
-
-  function reviewNotes() {
-    return [...data.notes].filter((note) => note.review).sort((a, b) => a.mastery - b.mastery || b.updatedAt - a.updatedAt);
-  }
-
-  function reviewBucket(note) {
-    if (note.mastery < 35 || (note.important && note.mastery < 60)) return 'urgent';
-    if (note.mastery < 50) return 'today';
-    if (note.pinned) return 'pinned';
-    return 'progressing';
-  }
-
-  function filteredReviewNotes() {
-    let notes = reviewNotes();
-    const search = els.searchInput.value.trim().toLowerCase();
-    if (search) {
-      notes = notes.filter((note) => [note.title, note.tag, note.preview].join(' ').toLowerCase().includes(search));
-    }
-    if (reviewFilter !== 'all') {
-      notes = notes.filter((note) => reviewBucket(note) === reviewFilter);
-    }
-    if (reviewTag !== 'all') {
-      notes = notes.filter((note) => note.tag === reviewTag);
-    }
-
-    switch (els.reviewSortSelect.value) {
-      case 'masteryHigh':
-        notes.sort((a, b) => b.mastery - a.mastery || b.updatedAt - a.updatedAt);
-        break;
-      case 'newest':
-        notes.sort((a, b) => b.updatedAt - a.updatedAt);
-        break;
-      case 'tagAZ':
-        notes.sort((a, b) => a.tag.localeCompare(b.tag, 'vi') || a.mastery - b.mastery);
-        break;
-      default:
-        notes.sort((a, b) => a.mastery - b.mastery || b.updatedAt - a.updatedAt);
-    }
-    return notes;
-  }
-
-  function topicSummary() {
-    const topics = new Map();
-    data.notes.forEach((note) => {
-      if (!topics.has(note.tag)) topics.set(note.tag, []);
-      topics.get(note.tag).push(note);
-    });
-    return [...topics.entries()].map(([name, items]) => ({
-      name,
-      progress: Math.round(items.reduce((sum, note) => sum + note.mastery, 0) / items.length),
-      count: items.length
-    })).sort((a, b) => b.count - a.count || b.progress - a.progress);
-  }
-
-  function fillTagSelects() {
-    const tags = [...new Set((data.tags || []).concat(data.notes.map((note) => note.tag)))].sort((a, b) => a.localeCompare(b, 'vi'));
-    const html = tags.map((tag) => `<option value="${esc(tag)}">${esc(tag)}</option>`).join('');
-    [els.quickTag, els.editTag].forEach((select) => {
-      const prev = select.value;
-      select.innerHTML = html;
-      if (prev && tags.includes(prev)) select.value = prev;
-    });
-    const reviewPrev = reviewTag;
-    els.reviewTagFilter.innerHTML = `<option value="all">Tất cả tag</option>${html}`;
-    if (reviewPrev === 'all' || !tags.includes(reviewPrev)) {
-      els.reviewTagFilter.value = 'all';
-      reviewTag = 'all';
-    } else {
-      els.reviewTagFilter.value = reviewPrev;
-    }
-    const notesPrev = notesTag;
-    els.notesTagFilter.innerHTML = `<option value="all">Tất cả tag</option>${html}`;
-    if (notesPrev === 'all' || !tags.includes(notesPrev)) {
-      els.notesTagFilter.value = 'all';
-      notesTag = 'all';
-    } else {
-      els.notesTagFilter.value = notesPrev;
-    }
-    if (!els.quickTag.value && tags.length) els.quickTag.value = tags[0];
-  }
-
-  function filteredNotes() {
-    const search = els.searchInput.value.trim().toLowerCase();
-    let notes = [...data.notes];
-    if (search) {
-      notes = notes.filter((note) => [note.title, note.tag, note.preview].join(' ').toLowerCase().includes(search));
-    }
-    if (activeChip === 'review') notes = notes.filter((note) => note.review);
-    if (activeChip === 'pinned') notes = notes.filter((note) => note.pinned);
-    if (activeChip === 'important') notes = notes.filter((note) => note.important);
-    if (notesTag !== 'all') notes = notes.filter((note) => note.tag === notesTag);
-    if (notesStatus !== 'all') notes = notes.filter((note) => note.status === notesStatus);
-
-    switch (els.sortSelect.value) {
-      case 'oldest':
-        notes.sort((a, b) => a.createdAt - b.createdAt);
-        break;
-      case 'masteryLow':
-        notes.sort((a, b) => a.mastery - b.mastery || b.updatedAt - a.updatedAt);
-        break;
-      case 'masteryHigh':
-        notes.sort((a, b) => b.mastery - a.mastery || b.updatedAt - a.updatedAt);
-        break;
-      case 'tagAZ':
-        notes.sort((a, b) => a.tag.localeCompare(b.tag, 'vi') || b.updatedAt - a.updatedAt);
-        break;
-      default:
-        notes.sort((a, b) => b.updatedAt - a.updatedAt);
-    }
-    return notes;
-  }
-
-  function priorityText(note) {
-    if (note.important) return 'Quan trọng';
-    if (note.review) return 'Cần ôn';
-    return note.status;
-  }
-
-  function dueText(note, index = 0) {
-    if (note.mastery < 35) return 'Ôn ngay';
-    if (note.mastery < 50) return 'Hôm nay';
-    if (note.review) return index === 0 ? 'Trong 15 phút' : 'Tối nay';
-    return 'Đã ổn';
-  }
-
-  function noteStateBadges(note) {
-    const badges = [`<span class="state-badge ${note.review ? 'warn' : 'good'}">${esc(note.status)}</span>`];
-    if (note.pinned) badges.push('<span class="state-badge info">Đã ghim</span>');
-    if (note.important) badges.push('<span class="state-badge warn">Quan trọng</span>');
-    if (note.mastery >= 80) badges.push('<span class="state-badge good">Nắm chắc</span>');
-    return badges.join('');
-  }
-
-
-  function noteMiniCard(note, label = '') {
-    return `
-      <div class="queue-item compact">
-        <div class="queue-rank mini">${label ? esc(label) : '•'}</div>
-        <div class="queue-body">
-          <p class="queue-title">${esc(note.title)}</p>
-          <p class="queue-sub">${esc(note.tag)} · Mastery ${note.mastery}% · ${esc(note.timeLabel)}</p>
-        </div>
-        <div class="inline-actions">
-          <button class="link-btn" data-view-id="${esc(note.id)}">Mở</button>
-          <button class="link-btn muted-link" data-edit-id="${esc(note.id)}">Sửa</button>
-        </div>
-      </div>
-    `;
-  }
-
-  function noteCard(note, { reviewMode = false } = {}) {
-    return `
-      <article class="note-card ${compactView ? 'compact-note' : ''}">
-        <div class="note-top">
-          <div class="min-zero">
-            <div class="note-title-row">
-              <h4 class="note-title">${esc(note.title)}</h4>
-              <span class="tag-pill">${esc(note.tag)}</span>
-            </div>
-            <p class="note-time">${esc(note.timeLabel)} · ${esc(dueText(note))}</p>
-          </div>
-          <span class="priority-pill">${esc(priorityText(note))}</span>
-        </div>
-        <p class="note-preview">${esc(note.preview)}</p>
-        <div class="note-flags">${noteStateBadges(note)}</div>
-        <div class="mastery-row spread-row">
-          <span>Mastery</span>
-          <span>${note.mastery}%</span>
-        </div>
-        <div class="mastery-bar"><div class="mastery-fill" style="width:${note.mastery}%"></div></div>
-        <div class="note-actions">
-          <div class="action-group">
-            <button class="mini-action" data-view-id="${esc(note.id)}">Mở lại</button>
-            <button class="mini-action muted" data-edit-id="${esc(note.id)}">Sửa</button>
-            <button class="mini-action muted" data-duplicate-id="${esc(note.id)}">Nhân bản</button>
-            ${reviewMode ? `<button class="mini-action" data-review-id="${esc(note.id)}">Ôn +10</button>` : ''}
-          </div>
-          <div class="action-group">
-            <button class="icon-action" title="Ghim" data-pin-id="${esc(note.id)}">📌</button>
-            <button class="icon-action" title="Quan trọng" data-important-id="${esc(note.id)}">⭐</button>
-            <button class="icon-action" title="Xóa" data-delete-id="${esc(note.id)}">🗑</button>
-          </div>
-        </div>
-      </article>
-    `;
-  }
-
-  function renderOverview() {
-    const total = data.notes.length;
-    const review = data.notes.filter((note) => note.review).length;
-    const pinned = data.notes.filter((note) => note.pinned).length;
-    const recentWeek = data.notes.filter((note) => Date.now() - note.createdAt < 7 * 24 * 60 * 60 * 1000).length;
-    const streak = String(Math.min(99, Math.max(3, recentWeek + 4))).padStart(2, '0');
-
-    const items = [
-      { label: 'Tổng note', value: total, hint: `+${recentWeek} tuần này` },
-      { label: 'Cần ôn', value: review, hint: `${Math.max(0, review - 2)} note cần ưu tiên` },
-      { label: 'Đã ghim', value: pinned, hint: `${data.notes.filter((note) => note.important).length} note quan trọng` },
-      { label: 'Chuỗi học', value: streak, hint: 'ngày liên tiếp' }
-    ];
-
-    els.overviewGrid.innerHTML = items.map((item) => `
-      <div class="overview-card">
-        <p class="overview-label">${esc(item.label)}</p>
-        <div class="overview-row">
-          <p class="overview-value">${esc(item.value)}</p>
-          <div class="overview-dot">●</div>
-        </div>
-        <p class="overview-hint">${esc(item.hint)}</p>
-      </div>
-    `).join('');
-  }
-
-  function renderTodayFocus() {
-    const weakest = weakNote();
-    const tasksDone = data.tasks.filter((task) => task.done).length;
-    const reviews = reviewNotes();
-    const latestBackup = data.backups?.[0];
-    const backupText = latestBackup ? new Date(latestBackup.createdAt).toLocaleDateString('vi-VN') : 'Chưa có';
-    if (!weakest) {
-      els.todayFocusCard.innerHTML = `
-        <div class="hero-row">
-          <div class="hero-copy">
-            <p class="section-kicker accent">Today Focus</p>
-            <h2 class="hero-title">Bắt đầu lưu note đầu tiên</h2>
-            <p class="hero-text">Tạo note đầu tiên để dashboard bắt đầu tính toán review queue, tiến độ theo chủ đề và backup tự động.</p>
-          </div>
-          <div class="hero-statbox">
-            <div class="hero-kpi"><span>Backup</span><strong>${esc(backupText)}</strong></div>
-          </div>
-        </div>`;
-      return;
-    }
-    els.todayFocusCard.innerHTML = `
-      <div class="hero-row">
-        <div class="hero-copy">
-          <p class="section-kicker accent">Today Focus</p>
-          <h2 class="hero-title">Ưu tiên note “${esc(weakest.title)}” trước</h2>
-          <p class="hero-text">Mastery hiện tại là ${weakest.mastery}% trong chủ đề ${esc(weakest.tag)}. Đây là note yếu nhất của bạn lúc này, nên ôn lại trước khi thêm nhiều note mới.</p>
-          <div class="hero-actions">
-            <button class="btn btn-primary" data-focus-open="${esc(weakest.id)}">Mở note yếu nhất</button>
-            <button class="btn" data-focus-review="${esc(weakest.id)}">Ôn +10 ngay</button>
-          </div>
-        </div>
-        <div class="hero-statbox">
-          <div class="hero-kpi"><span>Cần ôn</span><strong>${reviews.length}</strong></div>
-          <div class="hero-kpi"><span>Checklist</span><strong>${tasksDone}/${data.tasks.length}</strong></div>
-          <div class="hero-pill-list">
-            <span class="pill subtle-pill">Backup: ${esc(backupText)}</span>
-            <span class="pill subtle-pill">Tag: ${data.tags.length}</span>
-          </div>
-        </div>
-      </div>`;
-  }
-
-  function renderReviewQueue() {
-    const queue = reviewNotes().slice(0, 3);
-    els.reviewQueueList.innerHTML = queue.length
-      ? queue.map((note, index) => `
-        <div class="queue-item">
-          <div class="queue-rank">${index + 1}</div>
-          <div class="queue-body">
-            <p class="queue-title">${esc(note.title)}</p>
-            <p class="queue-sub">${esc(note.tag)} · ${esc(dueText(note, index))} · Mastery ${note.mastery}%</p>
-          </div>
-          <button class="link-btn" data-review-id="${esc(note.id)}">Ôn ngay</button>
-        </div>
-      `).join('')
-      : `<div class="empty-mini">Không có note cần ôn.</div>`;
-
-    const allReview = reviewNotes();
-    const reviewList = filteredReviewNotes();
-    const overviewItems = [
-      { label: 'Khẩn cấp', value: allReview.filter((note) => reviewBucket(note) === 'urgent').length, hint: 'Mastery thấp hoặc quan trọng' },
-      { label: 'Hôm nay', value: allReview.filter((note) => reviewBucket(note) === 'today').length, hint: 'Nên ôn trong ngày' },
-      { label: 'Đang tiến bộ', value: allReview.filter((note) => reviewBucket(note) === 'progressing').length, hint: 'Đã nhích lên nhưng chưa chắc' },
-      { label: 'Đã ghim', value: allReview.filter((note) => note.pinned && note.review).length, hint: 'Ưu tiên vì bạn tự ghim' }
-    ];
-    els.reviewOverview.innerHTML = overviewItems.map((item) => `
-      <div class="overview-card review-mini-card">
-        <p class="overview-label">${esc(item.label)}</p>
-        <div class="overview-row">
-          <p class="overview-value">${esc(item.value)}</p>
-          <div class="overview-dot">•</div>
-        </div>
-        <p class="overview-hint">${esc(item.hint)}</p>
-      </div>
-    `).join('');
-
-    document.querySelectorAll('[data-review-filter]').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.reviewFilter === reviewFilter);
-    });
-    els.reviewMetaText.textContent = `${reviewList.length} note đang hiển thị trong Review · bộ lọc ${reviewFilter === 'all' ? 'Tất cả' : reviewFilter} · tag ${reviewTag === 'all' ? 'Tất cả' : reviewTag}`;
-    els.reviewPanelList.innerHTML = reviewList.length
-      ? reviewList.map((note) => noteCard(note, { reviewMode: true })).join('')
-      : `<div class="empty-mini">Không có note phù hợp với bộ lọc review hiện tại.</div>`;
-  }
-
-  function renderTopics() {
-    const topics = topicSummary().slice(0, 5);
-    els.topicCountPill.textContent = `${topics.length} chủ đề`;
-    els.topicsList.innerHTML = topics.length ? topics.map((topic) => `
-      <div>
-        <div class="topic-row"><span>${esc(topic.name)}</span><span>${topic.progress}% · ${topic.count} note</span></div>
-        <div class="topic-bar"><div class="topic-fill" style="width:${topic.progress}%"></div></div>
-      </div>
-    `).join('') : `<div class="empty-mini">Chưa có dữ liệu theo chủ đề.</div>`;
-  }
-
-  function renderNotes() {
-    const notes = filteredNotes();
-    const pinnedNotes = notes.filter((note) => note.pinned).slice(0, compactView ? 2 : 3);
-    const weakNotes = [...notes].sort((a, b) => a.mastery - b.mastery || b.updatedAt - a.updatedAt).slice(0, compactView ? 2 : 3);
-    const avgMastery = notes.length ? Math.round(notes.reduce((sum, note) => sum + note.mastery, 0) / notes.length) : 0;
-    const reviewCount = notes.filter((note) => note.review).length;
-    const importantCount = notes.filter((note) => note.important).length;
-    const summaryCards = [
-      { label: 'Đang hiển thị', value: notes.length, hint: notesTag === 'all' ? 'mọi tag' : notesTag },
-      { label: 'Mastery TB', value: `${avgMastery}%`, hint: notesStatus === 'all' ? 'mọi trạng thái' : notesStatus },
-      { label: 'Cần ôn', value: reviewCount, hint: 'lọc riêng cho Notes' },
-      { label: 'Quan trọng', value: importantCount, hint: `${pinnedNotes.length} note đang ghim` }
-    ];
-    els.notesSummaryGrid.innerHTML = summaryCards.map((item) => `
-      <div class="overview-card review-mini-card">
-        <p class="overview-label">${esc(item.label)}</p>
-        <div class="overview-row">
-          <p class="overview-value">${esc(item.value)}</p>
-          <div class="overview-dot">•</div>
-        </div>
-        <p class="overview-hint">${esc(item.hint)}</p>
-      </div>
-    `).join('');
-
-    els.pinnedMetaPill.textContent = `${pinnedNotes.length} note`;
-    els.weakMetaPill.textContent = `${weakNotes.length} note`;
-    els.pinnedNotesWrap.classList.toggle('hidden', pinnedNotes.length === 0);
-    els.weakNotesWrap.classList.toggle('hidden', weakNotes.length === 0);
-    els.pinnedNotesList.innerHTML = pinnedNotes.map((note, idx) => noteMiniCard(note, String(idx + 1))).join('');
-    els.weakNotesList.innerHTML = weakNotes.map((note, idx) => noteMiniCard(note, String(idx + 1))).join('');
-
-    els.recentNotesList.innerHTML = notes.map((note) => noteCard(note)).join('');
-    const chipText = activeChip === 'all' ? 'Tất cả' : activeChip === 'review' ? 'Cần ôn' : activeChip === 'pinned' ? 'Đã ghim' : 'Quan trọng';
-    els.notesMetaText.textContent = `${notes.length} note đang hiển thị · chip ${chipText} · tag ${notesTag === 'all' ? 'Tất cả' : notesTag} · trạng thái ${notesStatus === 'all' ? 'Tất cả' : notesStatus} · chế độ ${compactView ? 'compact' : 'đầy đủ'}`;
-    els.emptyState.classList.toggle('hidden', notes.length > 0);
-    els.clearSearchBtn.classList.toggle('hidden', !els.searchInput.value.trim());
-    els.toggleViewBtn.textContent = compactView ? 'Đầy đủ' : 'Compact';
-    els.reviewSortSelect.value = els.reviewSortSelect.value || 'masteryLow';
-  }
-
-  function renderTasks() {
-
-    const doneCount = data.tasks.filter((task) => task.done).length;
-    els.taskProgressPill.textContent = `${doneCount}/${data.tasks.length} hoàn thành`;
-    els.tasksList.innerHTML = data.tasks.length ? data.tasks.map((task) => `
-      <label class="task-item ${task.done ? 'done' : ''}">
-        <input type="checkbox" data-task-id="${esc(task.id)}" ${task.done ? 'checked' : ''} />
-        <span class="task-text">${esc(task.text)}</span>
-        <button class="task-delete" type="button" data-task-delete="${esc(task.id)}">✕</button>
-      </label>
-    `).join('') : `<div class="empty-mini">Chưa có mục tiêu hôm nay.</div>`;
-  }
-
-  function renderInsight() {
-    const reviews = reviewNotes();
-    const weakest = weakNote();
-    const strongest = [...data.notes].sort((a, b) => b.mastery - a.mastery)[0];
-    if (!weakest) {
-      els.insightText.textContent = 'Bắt đầu tạo note đầu tiên để hệ thống gợi ý tối ưu học tập.';
-      return;
-    }
-    const line1 = `Hiện tại bạn có ${reviews.length} note cần ôn. Note yếu nhất là “${weakest.title}” (${weakest.mastery}%) ở chủ đề ${weakest.tag}.`;
-    const line2 = strongest ? `Chủ đề đang ổn nhất là ${strongest.tag} với note “${strongest.title}”.` : '';
-    const line3 = 'Nên dành 20–25 phút ôn nhóm mastery thấp trước, rồi mới tạo thêm note mới để tránh tích lũy quá nhiều nội dung chưa tiêu hóa.';
-    els.insightText.textContent = [line1, line2, line3].filter(Boolean).join(' ');
-  }
-
-  function renderBackups() {
-    const backups = data.backups || [];
-    els.backupStatus.textContent = backups.length
-      ? `Backup gần nhất: ${new Date(backups[0].createdAt).toLocaleString('vi-VN')} · ${backups[0].label}`
-      : 'Chưa có backup.';
-
-    els.backupList.innerHTML = backups.length
-      ? backups.map((backup) => `
-        <div class="queue-item">
-          <div class="queue-rank">⟲</div>
-          <div class="queue-body">
-            <p class="queue-title">${esc(backup.label)}</p>
-            <p class="queue-sub">${new Date(backup.createdAt).toLocaleString('vi-VN')}</p>
-          </div>
-          <div class="inline-actions">
-            <button class="link-btn" data-restore-id="${esc(backup.id)}">Khôi phục</button>
-            <button class="link-btn muted-link" data-export-backup-id="${esc(backup.id)}">Xuất</button>
-          </div>
-        </div>
-      `).join('')
-      : `<div class="empty-mini">Chưa có backup nào.</div>`;
-
-    const payloadSize = new Blob([JSON.stringify(data)]).size / 1024;
-    const storageCards = [
-      { label: 'Version', value: store.VERSION, hint: 'manifest + schema' },
-      { label: 'Dung lượng', value: `${payloadSize.toFixed(1)} KB`, hint: 'ước tính dữ liệu hiện tại' },
-      { label: 'Tags', value: data.tags.length, hint: 'đang dùng trong dashboard' },
-      { label: 'Backups', value: backups.length, hint: 'đang lưu cục bộ' }
-    ];
-    els.storageOverview.innerHTML = storageCards.map((item) => `
-      <div class="overview-card">
-        <p class="overview-label">${esc(item.label)}</p>
-        <div class="overview-row">
-          <p class="overview-value">${esc(item.value)}</p>
-          <div class="overview-dot">●</div>
-        </div>
-        <p class="overview-hint">${esc(item.hint)}</p>
-      </div>
-    `).join('');
   }
 
   function renderVisibility() {
@@ -743,45 +941,29 @@ ${selected || '// code của bạn'}
       btn.classList.toggle('active', btn.dataset.nav === activeNav);
     });
     document.querySelectorAll('[data-chip]').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.chip === activeChip);
+      if (!btn.dataset.reviewFilter && !btn.dataset.template) btn.classList.toggle('active', btn.dataset.chip === activeChip);
+    });
+    document.querySelectorAll('[data-review-filter]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.reviewFilter === reviewFilter);
     });
 
     els.reviewPanel.classList.toggle('hidden', activeNav !== 'review');
     els.settingsPanel.classList.toggle('hidden', activeNav !== 'settings');
 
-    if (activeNav === 'notes') {
-      els.notesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (lastNav !== activeNav) {
+      if (activeNav === 'notes') els.notesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (activeNav === 'review') els.reviewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (activeNav === 'settings') els.settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (activeNav === 'dashboard') els.scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
+      lastNav = activeNav;
     }
-    if (activeNav === 'review') {
-      els.reviewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    if (activeNav === 'settings') {
-      els.settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    if (activeNav === 'dashboard') {
-      els.scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }
-
-  function renderViewer() {
-    const note = data.notes.find((item) => item.id === viewingId);
-    if (!note) {
-      els.viewerModal.classList.add('hidden');
-      return;
-    }
-    els.viewTitle.textContent = note.title;
-    els.viewMeta.textContent = `${note.tag} · ${note.timeLabel} · Mastery ${note.mastery}%`;
-    els.viewBadges.innerHTML = noteStateBadges(note);
-    els.viewBody.innerHTML = renderMarkdown(note.preview);
-    els.viewReviewBtn.textContent = note.review ? 'Ôn +10' : 'Tăng +10';
-    els.viewPinBtn.textContent = note.pinned ? 'Bỏ ghim' : 'Ghim';
-    els.viewImportantBtn.textContent = note.important ? 'Bỏ quan trọng' : 'Quan trọng';
   }
 
   function render() {
-    fillTagSelects();
+    fillSelects();
     renderOverview();
     renderTodayFocus();
+    renderStudySprint();
     renderReviewQueue();
     renderTopics();
     renderNotes();
@@ -811,11 +993,17 @@ ${selected || '// code của bạn'}
 
   async function openEditor(noteId = null) {
     editingId = noteId || null;
+    fillSelects();
     const note = editingId ? data.notes.find((item) => item.id === editingId) : null;
     els.editorHeading.textContent = note ? 'Sửa note với Editor Pro' : 'Tạo note mới với Editor Pro';
     applyEditorState(note || {
       title: '',
-      tag: els.quickTag.value || els.editTag.value || data.tags[0],
+      subject: els.quickSubject.value || subjects()[0] || 'Lập trình',
+      chapter: '',
+      tag: els.quickTag.value || tags()[0] || 'JavaScript',
+      kind: 'concept',
+      source: '',
+      answer: '',
       status: 'Đang học',
       mastery: 60,
       preview: '',
@@ -846,9 +1034,13 @@ ${selected || '// code của bạn'}
 
   function resetQuickForm() {
     els.quickTitle.value = '';
-    els.quickContent.value = '';
-    els.quickMastery.value = 60;
+    els.quickChapter.value = '';
+    els.quickKind.value = 'concept';
     els.quickStatus.value = 'Đang học';
+    els.quickMastery.value = 60;
+    els.quickSource.value = '';
+    els.quickContent.value = '';
+    els.quickAnswer.value = '';
   }
 
   async function saveQuickNote(pinned) {
@@ -858,7 +1050,12 @@ ${selected || '// code của bạn'}
     }
     const note = store.makeNote({
       title: els.quickTitle.value,
+      subject: els.quickSubject.value,
+      chapter: els.quickChapter.value,
       tag: els.quickTag.value,
+      kind: els.quickKind.value,
+      source: els.quickSource.value,
+      answer: els.quickAnswer.value,
       preview: els.quickContent.value,
       status: els.quickStatus.value,
       mastery: els.quickMastery.value,
@@ -876,9 +1073,7 @@ ${selected || '// code của bạn'}
     const note = data.notes.find((item) => item.id === noteId);
     if (!note) return;
     note.mastery = Math.min(100, note.mastery + amount);
-    note.review = note.status === 'Cần ôn' || note.mastery < 65;
-    note.updatedAt = Date.now();
-    note.timeLabel = store.timeLabel(note.updatedAt);
+    store.completeReview(note, 'remember');
     await persist('Đã ôn note');
   }
 
@@ -893,7 +1088,25 @@ ${selected || '// code của bạn'}
     await persist('Đã thêm mục tiêu');
   }
 
+  function applyTemplate(name) {
+    const template = TEMPLATE_MAP[name];
+    if (!template) return;
+    if (!els.quickTitle.value.trim()) els.quickTitle.value = template.title;
+    els.quickSubject.value = template.subject;
+    if ([...els.quickTag.options].some((opt) => opt.value === template.tag)) els.quickTag.value = template.tag;
+    els.quickKind.value = template.kind;
+    if (!els.quickSource.value.trim()) els.quickSource.value = template.source;
+    els.quickContent.value = els.quickContent.value.trim() ? `${els.quickContent.value.trim()}\n\n${template.preview}` : template.preview;
+    if (!els.quickAnswer.value.trim()) els.quickAnswer.value = template.answer;
+    showToast(`Đã chèn ${template.title.toLowerCase()}`);
+  }
+
+  document.querySelectorAll('[data-template]').forEach((button) => {
+    button.addEventListener('click', () => applyTemplate(button.dataset.template));
+  });
+
   document.querySelectorAll('[data-chip]').forEach((button) => {
+    if (button.dataset.template) return;
     button.addEventListener('click', () => {
       activeChip = button.dataset.chip;
       renderNotes();
@@ -905,35 +1118,8 @@ ${selected || '// code của bạn'}
     button.addEventListener('click', () => {
       reviewFilter = button.dataset.reviewFilter;
       renderReviewQueue();
+      renderVisibility();
     });
-  });
-
-  els.reviewTagFilter.addEventListener('change', () => {
-    reviewTag = els.reviewTagFilter.value;
-    renderReviewQueue();
-  });
-
-  els.notesTagFilter.addEventListener('change', () => {
-    notesTag = els.notesTagFilter.value;
-    renderNotes();
-  });
-
-  els.notesStatusFilter.addEventListener('change', () => {
-    notesStatus = els.notesStatusFilter.value;
-    renderNotes();
-  });
-
-  els.reviewSortSelect.addEventListener('change', () => {
-    renderReviewQueue();
-  });
-
-  els.resetReviewFiltersBtn.addEventListener('click', () => {
-    reviewFilter = 'all';
-    reviewTag = 'all';
-    els.reviewTagFilter.value = 'all';
-    els.reviewSortSelect.value = 'masteryLow';
-    renderReviewQueue();
-    showToast('Đã đặt lại bộ lọc review');
   });
 
   document.querySelectorAll('[data-nav]').forEach((button) => {
@@ -944,35 +1130,92 @@ ${selected || '// code của bạn'}
   });
 
   els.searchInput.addEventListener('input', () => { renderNotes(); renderReviewQueue(); });
-  els.sortSelect.addEventListener('change', renderNotes);
+  els.openSearchBtn.addEventListener('click', () => els.searchInput.focus());
   els.clearSearchBtn.addEventListener('click', () => {
     els.searchInput.value = '';
     renderNotes();
     renderReviewQueue();
     els.searchInput.focus();
   });
-  els.toggleViewBtn.addEventListener('click', () => {
-    compactView = !compactView;
-    renderNotes();
-  });
+
+  els.notesSubjectFilter.addEventListener('change', () => { notesSubject = els.notesSubjectFilter.value; renderNotes(); });
+  els.notesTagFilter.addEventListener('change', () => { notesTag = els.notesTagFilter.value; renderNotes(); });
+  els.notesKindFilter.addEventListener('change', () => { notesKind = els.notesKindFilter.value; renderNotes(); });
+  els.notesStatusFilter.addEventListener('change', () => { notesStatus = els.notesStatusFilter.value; renderNotes(); });
+  els.sortSelect.addEventListener('change', renderNotes);
+  els.toggleViewBtn.addEventListener('click', () => { compactView = !compactView; renderNotes(); });
   els.resetNotesFiltersBtn.addEventListener('click', () => {
+    notesSubject = 'all';
     notesTag = 'all';
+    notesKind = 'all';
     notesStatus = 'all';
+    els.notesSubjectFilter.value = 'all';
     els.notesTagFilter.value = 'all';
+    els.notesKindFilter.value = 'all';
     els.notesStatusFilter.value = 'all';
     els.sortSelect.value = 'newest';
     renderNotes();
     showToast('Đã đặt lại bộ lọc Notes');
   });
-  $('openSearchBtn').addEventListener('click', () => els.searchInput.focus());
-  $('openComposerBtn').addEventListener('click', () => { void openEditor(); });
-  $('saveQuickBtn').addEventListener('click', () => saveQuickNote(false));
-  $('pinQuickBtn').addEventListener('click', () => saveQuickNote(true));
-  els.quickContent.addEventListener('keydown', (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') saveQuickNote(false);
+
+  els.reviewSubjectFilter.addEventListener('change', () => { reviewSubject = els.reviewSubjectFilter.value; renderReviewQueue(); });
+  els.reviewTagFilter.addEventListener('change', () => { reviewTag = els.reviewTagFilter.value; renderReviewQueue(); });
+  els.reviewKindFilter.addEventListener('change', () => { reviewKind = els.reviewKindFilter.value; renderReviewQueue(); });
+  els.reviewSortSelect.addEventListener('change', renderReviewQueue);
+  els.resetReviewFiltersBtn.addEventListener('click', () => {
+    reviewFilter = 'all';
+    reviewSubject = 'all';
+    reviewTag = 'all';
+    reviewKind = 'all';
+    els.reviewSubjectFilter.value = 'all';
+    els.reviewTagFilter.value = 'all';
+    els.reviewKindFilter.value = 'all';
+    els.reviewSortSelect.value = 'masteryLow';
+    renderReviewQueue();
+    renderVisibility();
+    showToast('Đã đặt lại bộ lọc review');
   });
 
-  [els.editTitle, els.editTag, els.editStatus, els.editMastery, els.editContent, els.editPinned, els.editImportant].forEach((input) => {
+  els.saveQuickBtn.addEventListener('click', () => { void saveQuickNote(false); });
+  els.pinQuickBtn.addEventListener('click', () => { void saveQuickNote(true); });
+  els.quickContent.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      void saveQuickNote(false);
+    }
+  });
+
+  els.revealSprintBtn.addEventListener('click', () => {
+    sprintReveal = !sprintReveal;
+    renderStudySprint();
+  });
+  els.rememberSprintBtn.addEventListener('click', async () => {
+    const note = sprintNote();
+    if (!note) return;
+    store.completeReview(note, 'remember');
+    sprintReveal = false;
+    sprintNoteId = null;
+    await persist('Đã cập nhật Study Sprint');
+  });
+  els.forgetSprintBtn.addEventListener('click', async () => {
+    const note = sprintNote();
+    if (!note) return;
+    store.completeReview(note, 'forget');
+    sprintReveal = false;
+    sprintNoteId = null;
+    await persist('Đã đưa note vào hàng ôn lại');
+  });
+
+  els.addTaskBtn.addEventListener('click', () => { void addTask(); });
+  els.newTaskInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void addTask();
+    }
+  });
+
+  els.openComposerBtn.addEventListener('click', () => { void openEditor(); });
+  [els.editTitle, els.editSubject, els.editTag, els.editChapter, els.editKind, els.editStatus, els.editMastery, els.editSource, els.editContent, els.editAnswer, els.editPinned, els.editImportant].forEach((input) => {
     const evt = input.tagName === 'SELECT' || input.type === 'checkbox' ? 'change' : 'input';
     input.addEventListener(evt, () => {
       updateEditorPreview();
@@ -989,7 +1232,12 @@ ${selected || '// code của bạn'}
   els.clearEditorBtn.addEventListener('click', () => {
     applyEditorState({
       title: '',
-      tag: els.editTag.value || data.tags[0],
+      subject: els.editSubject.value || subjects()[0] || 'Lập trình',
+      chapter: '',
+      tag: els.editTag.value || tags()[0] || 'JavaScript',
+      kind: 'concept',
+      source: '',
+      answer: '',
       status: 'Đang học',
       mastery: 60,
       preview: '',
@@ -1004,12 +1252,8 @@ ${selected || '// code của bạn'}
     els.editorModal.classList.toggle('editor-focus-mode', editorFocusMode);
     els.editorFocusBtn.textContent = editorFocusMode ? 'Thoát focus' : 'Focus';
   });
-  els.addTaskBtn.addEventListener('click', addTask);
-  els.newTaskInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') addTask();
-  });
 
-  $('saveEditBtn').addEventListener('click', async () => {
+  els.saveEditBtn.addEventListener('click', async () => {
     const payload = currentEditorPayload();
     const isEditMode = Boolean(editingId);
     if (!payload.title.trim() || !payload.preview.trim()) {
@@ -1021,15 +1265,20 @@ ${selected || '// code của bạn'}
       if (!note) return;
       store.pushHistory(note, 'Before save');
       note.title = payload.title;
+      note.subject = payload.subject;
+      note.chapter = payload.chapter;
       note.tag = payload.tag;
+      note.kind = payload.kind;
+      note.source = payload.source;
+      note.answer = payload.answer;
       note.status = payload.status;
       note.mastery = Math.max(0, Math.min(100, Number(payload.mastery) || 0));
       note.preview = payload.preview.trim();
       note.pinned = payload.pinned;
       note.important = payload.important;
-      note.review = note.status === 'Cần ôn' || note.mastery < 65;
       note.updatedAt = Date.now();
       note.timeLabel = store.timeLabel(note.updatedAt);
+      note.review = note.status === 'Cần ôn' || note.mastery < 65 || store.isDue(note);
       if (!Array.isArray(note.history)) note.history = [];
     } else {
       const note = store.makeNote(payload);
@@ -1043,76 +1292,34 @@ ${selected || '// code của bạn'}
     await persist(isEditMode ? 'Đã lưu note trong Editor Pro' : 'Đã tạo note mới trong Editor Pro');
   });
 
-  $('bulkReviewBtn').addEventListener('click', async () => {
-    const targets = new Set(filteredReviewNotes().map((note) => note.id));
-    data.notes.forEach((note) => {
-      if (targets.has(note.id)) {
-        note.mastery = Math.min(100, note.mastery + 10);
-        note.review = note.status === 'Cần ôn' || note.mastery < 65;
-        note.updatedAt = Date.now();
-        note.timeLabel = store.timeLabel(note.updatedAt);
-      }
+
+  els.bulkReviewBtn.addEventListener('click', async () => {
+    const targets = filteredReviewNotes();
+    if (!targets.length) {
+      showToast('Không có note nào trong nhóm review hiện tại');
+      return;
+    }
+    targets.forEach((note) => {
+      note.mastery = Math.min(100, note.mastery + 10);
+      store.completeReview(note, 'remember');
     });
     await persist('Đã ôn nhóm review hiện tại');
   });
 
-  $('bulkCompleteBtn').addEventListener('click', async () => {
-    const targets = new Set(filteredReviewNotes().map((note) => note.id));
-    data.notes.forEach((note) => {
-      if (targets.has(note.id) && note.review && note.mastery >= 55) {
-        note.review = false;
-        note.status = note.status === 'Cần ôn' ? 'Đã lưu' : note.status;
-        note.updatedAt = Date.now();
-        note.timeLabel = store.timeLabel(note.updatedAt);
-      }
-    });
-    await persist('Đã cập nhật nhóm note đã tiến bộ');
-  });
-
-  $('backupNowBtn').addEventListener('click', async () => {
-    data = await store.createManualBackup('Manual backup');
-    render();
-    showToast('Đã tạo backup');
-  });
-
-  $('restoreLatestBtn').addEventListener('click', async () => {
-    const latest = (data.backups || [])[0];
-    if (!latest) {
-      showToast('Chưa có backup để khôi phục');
+  els.bulkCompleteBtn.addEventListener('click', async () => {
+    const targets = filteredReviewNotes();
+    if (!targets.length) {
+      showToast('Không có note nào trong nhóm review hiện tại');
       return;
     }
-    if (!confirm('Khôi phục backup mới nhất? Dữ liệu hiện tại sẽ được thay thế.')) return;
-    data = await store.restoreBackup(latest.id);
-    render();
-    showToast('Đã khôi phục backup mới nhất');
-  });
-
-  $('exportDataBtn').addEventListener('click', async () => {
-    await store.exportCurrentData();
-    showToast('Đã xuất dữ liệu');
-  });
-
-  $('restoreSeedBtn').addEventListener('click', async () => {
-    if (!confirm('Khôi phục dữ liệu mẫu? Dữ liệu hiện tại sẽ được backup trước.')) return;
-    data = await store.restoreSeedData();
-    render();
-    showToast('Đã khôi phục dữ liệu mẫu');
-  });
-
-  $('importFileInput').addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      data = await store.importData(parsed);
-      render();
-      showToast('Đã nhập dữ liệu');
-    } catch (error) {
-      console.error(error);
-      showToast('File JSON không hợp lệ');
-    }
-    event.target.value = '';
+    targets.forEach((note) => {
+      if (note.status === 'Cần ôn' && note.mastery >= 55) note.status = 'Đã lưu';
+      note.review = false;
+      note.updatedAt = Date.now();
+      note.timeLabel = store.timeLabel(note.updatedAt);
+      store.scheduleNextReview(note, 'remember');
+    });
+    await persist('Đã cập nhật nhóm note đã tiến bộ');
   });
 
   els.viewReviewBtn.addEventListener('click', () => viewingId && bumpReview(viewingId));
@@ -1133,6 +1340,48 @@ ${selected || '// code của bạn'}
     const id = viewingId;
     closeViewer();
     void openEditor(id);
+  });
+
+  els.backupNowBtn.addEventListener('click', async () => {
+    data = await store.createManualBackup('Manual backup');
+    render();
+    showToast('Đã tạo backup');
+  });
+  els.restoreLatestBtn.addEventListener('click', async () => {
+    const latest = (data.backups || [])[0];
+    if (!latest) {
+      showToast('Chưa có backup để khôi phục');
+      return;
+    }
+    if (!confirm('Khôi phục backup mới nhất? Dữ liệu hiện tại sẽ được thay thế.')) return;
+    data = await store.restoreBackup(latest.id);
+    render();
+    showToast('Đã khôi phục backup mới nhất');
+  });
+  els.exportDataBtn.addEventListener('click', async () => {
+    await store.exportCurrentData();
+    showToast('Đã xuất dữ liệu');
+  });
+  els.restoreSeedBtn.addEventListener('click', async () => {
+    if (!confirm('Khôi phục dữ liệu mẫu? Dữ liệu hiện tại sẽ được backup trước.')) return;
+    data = await store.restoreSeedData();
+    render();
+    showToast('Đã khôi phục dữ liệu mẫu');
+  });
+  els.importFileInput.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      data = await store.importData(parsed);
+      render();
+      showToast('Đã nhập dữ liệu');
+    } catch (error) {
+      console.error(error);
+      showToast('File JSON không hợp lệ');
+    }
+    event.target.value = '';
   });
 
   document.body.addEventListener('click', async (event) => {
@@ -1189,14 +1438,18 @@ ${selected || '// code của bạn'}
       if (!source) return;
       const copy = store.makeNote({
         title: `${source.title} (copy)`,
+        subject: source.subject,
+        chapter: source.chapter,
         tag: source.tag,
+        kind: source.kind,
+        source: source.source,
+        answer: source.answer,
         preview: source.preview,
         status: source.status,
         mastery: source.mastery,
         pinned: false,
         important: source.important
       });
-      copy.review = source.review;
       copy.history = Array.isArray(source.history) ? source.history.slice(0, 5) : [];
       data.notes.unshift(copy);
       await persist('Đã nhân bản note');
@@ -1229,6 +1482,7 @@ ${selected || '// code của bạn'}
     if (target.dataset.taskDelete) {
       data.tasks = data.tasks.filter((item) => item.id !== target.dataset.taskDelete);
       await persist('Đã xóa mục tiêu');
+      return;
     }
   });
 
@@ -1256,6 +1510,10 @@ ${selected || '// code của bạn'}
     if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'e') {
       event.preventDefault();
       void openEditor(editingId);
+    }
+    if (event.key === 'Escape') {
+      if (!els.editorModal.classList.contains('hidden')) closeEditor();
+      if (!els.viewerModal.classList.contains('hidden')) closeViewer();
     }
   });
 

@@ -16,7 +16,7 @@
             <div>
               <p class="eyebrow">Study Notes Dashboard</p>
               <h1 class="title">Bảng điều khiển học tập</h1>
-              <p class="subtitle">Theo dõi tiến độ, ghi chú nhanh và ôn tập trong một nơi.</p>
+              <p class="subtitle">Note theo môn học, ôn theo chu kỳ và luyện nhớ nhanh trong một nơi.</p>
             </div>
             <div class="header-actions">
               <button class="icon-btn" id="openSearchBtn" title="Tìm kiếm">⌕</button>
@@ -25,7 +25,7 @@
           </div>
           <div class="search-bar">
             <span>🔎</span>
-            <input id="searchInput" type="text" placeholder="Tìm theo tiêu đề, chủ đề, nội dung, tag..." />
+            <input id="searchInput" type="text" placeholder="Tìm theo tiêu đề, môn, chương, tag, nội dung..." />
             <button class="clear-search hidden" id="clearSearchBtn" title="Xóa tìm kiếm">✕</button>
           </div>
           <div class="filter-row">
@@ -46,15 +46,30 @@
               <div>
                 <p class="section-kicker accent">Quick Capture</p>
                 <h2 class="section-title big">Ghi nhanh điều vừa học</h2>
-                <p class="section-text">Tối ưu cho việc note ngay trong lúc xem bài giảng, đọc tài liệu hoặc code.</p>
+                <p class="section-text">Tối ưu cho lập trình, toán, ngoại ngữ, lý thuyết và cả note sửa lỗi sai.</p>
               </div>
               <span class="pill">Instant save</span>
             </div>
 
+            <div class="template-row">
+              <button class="chip template-chip" data-template="coding">Lập trình</button>
+              <button class="chip template-chip" data-template="math">Toán</button>
+              <button class="chip template-chip" data-template="language">Ngoại ngữ</button>
+              <button class="chip template-chip" data-template="theory">Lý thuyết</button>
+              <button class="chip template-chip" data-template="mistake">Lỗi sai</button>
+            </div>
+
             <div class="capture-form">
               <input id="quickTitle" class="capture-input" type="text" placeholder="Tiêu đề note ngắn gọn" />
-              <div class="capture-grid three-col">
+              <div class="capture-grid two-col">
+                <select id="quickSubject" class="capture-input"></select>
                 <select id="quickTag" class="capture-input"></select>
+              </div>
+              <div class="capture-grid two-col">
+                <input id="quickChapter" class="capture-input" type="text" placeholder="Chương / bài học" />
+                <select id="quickKind" class="capture-input"></select>
+              </div>
+              <div class="capture-grid two-col">
                 <select id="quickStatus" class="capture-input">
                   <option value="Đang học">Đang học</option>
                   <option value="Đã lưu">Đã lưu</option>
@@ -62,11 +77,49 @@
                 </select>
                 <input id="quickMastery" class="capture-input" type="number" min="0" max="100" value="60" />
               </div>
-              <textarea id="quickContent" class="capture-textarea" placeholder="Ví dụ: useEffect nên dùng khi cần đồng bộ dữ liệu, call API, hoặc xử lý side effect sau khi component render..."></textarea>
+              <input id="quickSource" class="capture-input" type="text" placeholder="Nguồn học: Lecture / Docs / Video / Bài tập..." />
+              <textarea id="quickContent" class="capture-textarea" placeholder="Ghi điều vừa học, công thức, code, ý chính hoặc tóm tắt..."></textarea>
+              <textarea id="quickAnswer" class="capture-textarea small" placeholder="Đáp án / mặt sau flashcard (không bắt buộc)"></textarea>
               <div class="capture-actions">
                 <button class="btn btn-primary grow" id="saveQuickBtn">Lưu note mới</button>
                 <button class="btn" id="pinQuickBtn">Lưu & ghim</button>
               </div>
+            </div>
+          </section>
+
+          <section class="stack-grid stack-grid-tight">
+            <div class="card study-sprint-card" id="studySprintCard">
+              <div class="section-head">
+                <div>
+                  <p class="section-kicker">Study Sprint</p>
+                  <h3 class="section-title">Tự kiểm tra nhanh</h3>
+                </div>
+                <span class="pill subtle-pill" id="sprintMetaPill">0 note</span>
+              </div>
+              <div class="sprint-card-shell">
+                <p class="sprint-question-title" id="sprintQuestionTitle">Chưa có câu hỏi</p>
+                <p class="sprint-question-body" id="sprintQuestionBody">Thêm note dạng câu hỏi hoặc note cần ôn để bắt đầu Study Sprint.</p>
+                <div class="sprint-answer hidden" id="sprintAnswerWrap">
+                  <p class="sprint-answer-label">Đáp án / điểm nhớ chính</p>
+                  <div class="viewer-body sprint-answer-body" id="sprintAnswerBody"></div>
+                </div>
+                <div class="capture-actions sprint-actions">
+                  <button class="btn" id="revealSprintBtn">Lật đáp án</button>
+                  <button class="btn btn-primary grow" id="rememberSprintBtn">Nhớ rồi</button>
+                  <button class="btn" id="forgetSprintBtn">Quên mất</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="section-head">
+                <div>
+                  <p class="section-kicker">Learning Topics</p>
+                  <h3 class="section-title">Tiến độ theo môn</h3>
+                </div>
+                <span class="pill subtle-pill" id="topicCountPill">0 môn</span>
+              </div>
+              <div id="topicsList" class="topics-list"></div>
             </div>
           </section>
 
@@ -82,15 +135,15 @@
               <div id="reviewQueueList" class="stack-list"></div>
             </div>
 
-            <div class="card">
+            <div class="card soft-glow">
               <div class="section-head">
                 <div>
-                  <p class="section-kicker">Learning Topics</p>
-                  <h3 class="section-title">Tiến độ theo chủ đề</h3>
+                  <p class="section-kicker">Insight</p>
+                  <h3 class="section-title">Gợi ý tối ưu học tập</h3>
                 </div>
-                <span class="pill subtle-pill" id="topicCountPill">0 chủ đề</span>
+                <span class="pill accent-pill">Smart hint</span>
               </div>
-              <div id="topicsList" class="topics-list"></div>
+              <p id="insightText" class="section-text insight"></p>
             </div>
           </section>
 
@@ -98,7 +151,7 @@
             <div class="section-head align-start-mobile">
               <div>
                 <p class="section-kicker">Notes Workspace</p>
-                <h3 class="section-title">Kho ghi chú của bạn</h3>
+                <h3 class="section-title">Kho ghi chú học tập</h3>
                 <p class="section-text compact-text" id="notesMetaText"></p>
               </div>
               <div class="section-tools toolbar-wrap">
@@ -109,10 +162,10 @@
             <div class="grid-two mini-overview notes-summary-grid" id="notesSummaryGrid"></div>
 
             <div class="review-toolbar notes-toolbar">
-              <div class="review-tools-grid notes-tools-grid notes-tools-grid-3">
-                <select id="notesTagFilter" class="mini-select">
-                  <option value="all">Tất cả tag</option>
-                </select>
+              <div class="review-tools-grid notes-tools-grid notes-tools-grid-2x3">
+                <select id="notesSubjectFilter" class="mini-select"><option value="all">Tất cả môn</option></select>
+                <select id="notesTagFilter" class="mini-select"><option value="all">Tất cả tag</option></select>
+                <select id="notesKindFilter" class="mini-select"><option value="all">Tất cả loại</option></select>
                 <select id="notesStatusFilter" class="mini-select">
                   <option value="all">Tất cả trạng thái</option>
                   <option value="Đang học">Đang học</option>
@@ -128,7 +181,7 @@
                 </select>
               </div>
               <div class="review-helper-row notes-helper-row">
-                <p class="section-text compact-text">Lọc riêng cho Notes mà không ảnh hưởng đến Review.</p>
+                <p class="section-text compact-text">Lọc theo môn, tag, loại note và trạng thái.</p>
                 <button class="mini-btn" id="resetNotesFiltersBtn">Đặt lại bộ lọc Notes</button>
               </div>
             </div>
@@ -175,60 +228,48 @@
               <div id="tasksList" class="stack-list"></div>
             </div>
 
-            <div class="card soft-glow">
-              <div class="section-head">
+            <div class="card hidden" id="reviewPanel">
+              <div class="section-head align-start-mobile">
                 <div>
-                  <p class="section-kicker">Insight</p>
-                  <h3 class="section-title">Gợi ý tối ưu học tập</h3>
+                  <p class="section-kicker">Review</p>
+                  <h3 class="section-title">Hàng đợi ôn tập</h3>
+                  <p class="section-text compact-text">Lọc theo môn, tag, loại note và ôn hàng loạt trên đúng nhóm đang xem.</p>
                 </div>
-                <span class="pill accent-pill">Smart hint</span>
+                <div class="section-tools toolbar-wrap">
+                  <button class="mini-btn" id="bulkReviewBtn">Ôn +10 nhóm hiện tại</button>
+                  <button class="mini-btn" id="bulkCompleteBtn">Đánh dấu đã tiến bộ</button>
+                </div>
               </div>
-              <p id="insightText" class="section-text insight"></p>
+
+              <div class="grid-two mini-overview review-overview-grid" id="reviewOverview"></div>
+
+              <div class="review-toolbar">
+                <div class="filter-row review-filter-row" id="reviewFilterRow">
+                  <button class="chip active" data-review-filter="all">Tất cả</button>
+                  <button class="chip" data-review-filter="urgent">Khẩn cấp</button>
+                  <button class="chip" data-review-filter="today">Hôm nay</button>
+                  <button class="chip" data-review-filter="progressing">Đang tiến bộ</button>
+                </div>
+                <div class="review-tools-grid notes-tools-grid notes-tools-grid-2x3">
+                  <select id="reviewSubjectFilter" class="mini-select"><option value="all">Tất cả môn</option></select>
+                  <select id="reviewTagFilter" class="mini-select"><option value="all">Tất cả tag</option></select>
+                  <select id="reviewKindFilter" class="mini-select"><option value="all">Tất cả loại</option></select>
+                  <select id="reviewSortSelect" class="mini-select">
+                    <option value="masteryLow">Mastery thấp</option>
+                    <option value="masteryHigh">Mastery cao</option>
+                    <option value="newest">Mới cập nhật</option>
+                    <option value="tagAZ">Tag A-Z</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="review-helper-row">
+                <p class="section-text compact-text" id="reviewMetaText"></p>
+                <button class="mini-btn" id="resetReviewFiltersBtn">Đặt lại bộ lọc</button>
+              </div>
+
+              <div id="reviewPanelList" class="stack-list"></div>
             </div>
-          </section>
-
-          <section class="card hidden" id="reviewPanel">
-            <div class="section-head align-start-mobile">
-              <div>
-                <p class="section-kicker">Review</p>
-                <h3 class="section-title">Hàng đợi ôn tập</h3>
-                <p class="section-text compact-text">Lọc theo mức ưu tiên, tag và thao tác hàng loạt trên đúng nhóm note bạn đang xem.</p>
-              </div>
-              <div class="section-tools toolbar-wrap">
-                <button class="mini-btn" id="bulkReviewBtn">Ôn +10 nhóm hiện tại</button>
-                <button class="mini-btn" id="bulkCompleteBtn">Đánh dấu đã tiến bộ</button>
-              </div>
-            </div>
-
-            <div class="grid-two mini-overview review-overview-grid" id="reviewOverview"></div>
-
-            <div class="review-toolbar">
-              <div class="filter-row review-filter-row" id="reviewFilterRow">
-                <button class="chip active" data-review-filter="all">Tất cả</button>
-                <button class="chip" data-review-filter="urgent">Khẩn cấp</button>
-                <button class="chip" data-review-filter="today">Hôm nay</button>
-                <button class="chip" data-review-filter="progressing">Đang tiến bộ</button>
-                <button class="chip" data-review-filter="pinned">Đã ghim</button>
-              </div>
-              <div class="review-tools-grid">
-                <select id="reviewTagFilter" class="mini-select">
-                  <option value="all">Tất cả tag</option>
-                </select>
-                <select id="reviewSortSelect" class="mini-select">
-                  <option value="masteryLow">Ưu tiên mastery thấp</option>
-                  <option value="masteryHigh">Mastery cao dần</option>
-                  <option value="newest">Mới cập nhật</option>
-                  <option value="tagAZ">Tag A-Z</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="review-helper-row">
-              <p class="section-text compact-text" id="reviewMetaText"></p>
-              <button class="mini-btn" id="resetReviewFiltersBtn">Đặt lại bộ lọc</button>
-            </div>
-
-            <div id="reviewPanelList" class="stack-list"></div>
           </section>
 
           <section class="card hidden" id="settingsPanel">
@@ -319,14 +360,22 @@
         <div class="editor-pane">
           <div class="editor-form">
             <input id="editTitle" class="capture-input" type="text" placeholder="Tiêu đề note" />
-            <div class="capture-grid three-col">
+            <div class="capture-grid two-col">
+              <select id="editSubject" class="capture-input"></select>
               <select id="editTag" class="capture-input"></select>
+            </div>
+            <div class="capture-grid two-col">
+              <input id="editChapter" class="capture-input" type="text" placeholder="Chương / bài học" />
+              <select id="editKind" class="capture-input"></select>
+            </div>
+            <div class="capture-grid three-col">
               <select id="editStatus" class="capture-input">
                 <option value="Đang học">Đang học</option>
                 <option value="Đã lưu">Đã lưu</option>
                 <option value="Cần ôn">Cần ôn</option>
               </select>
               <input id="editMastery" class="capture-input" type="number" min="0" max="100" />
+              <input id="editSource" class="capture-input" type="text" placeholder="Nguồn học" />
             </div>
             <div class="editor-toolbar">
               <button class="mini-btn" data-md="h1">H1</button>
@@ -338,6 +387,7 @@
               <button class="mini-btn" data-md="inline">`Code`</button>
             </div>
             <textarea id="editContent" class="capture-textarea editor-textarea" placeholder="Nội dung note hỗ trợ markdown nhẹ"></textarea>
+            <textarea id="editAnswer" class="capture-textarea small" placeholder="Đáp án / mặt sau flashcard (không bắt buộc)"></textarea>
             <div class="capture-grid two-col">
               <label class="check-tile"><input id="editPinned" type="checkbox" /> Ghim</label>
               <label class="check-tile"><input id="editImportant" type="checkbox" /> Quan trọng</label>

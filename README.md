@@ -1,22 +1,19 @@
-# Study Note Dashboard V3 Editor Pro
+# Study Note Dashboard V3.7.2
 
-Bản này giữ nguyên nền dữ liệu ổn định của các bản V3 trước và nâng cấp mạnh khu vực viết note:
-- cùng `manifest.key`
-- dùng `chrome.storage.local`
-- backup tự động khi tăng version
-- backup / restore / import / export trong Settings
+Bản này là gói sửa lỗi đầy đủ từ source gốc, giữ nguyên storage key để tránh mất dữ liệu cũ.
 
-## Điểm mới của Editor Pro
-- editor 2 cột: viết ở trái, preview ở phải
-- preview markdown nhẹ: heading, list, checklist, quote, code block, inline code
-- autosave bản nháp cục bộ khi đang gõ
-- khôi phục bản nháp khi mở lại editor
-- lịch sử chỉnh sửa ngắn cho từng note
-- focus mode để tập trung viết
-- popup có nhận biết bản nháp Editor Pro
+## Đã sửa
 
-## Cập nhật an toàn
-1. Chép đè file mới vào đúng thư mục extension đang dùng
-2. Vào `chrome://extensions` hoặc `edge://extensions`
-3. Bấm **Reload**
-4. Không bấm **Remove** nếu muốn giữ dữ liệu cũ
+- bổ sung đủ icon 16/32/48/128 để manifest nạp được
+- giữ nguyên `key` của extension để không đổi ID khi reload cùng thư mục
+- tăng độ tương thích `chrome.storage.local` bằng callback wrapper
+- gia cố popup/options/background để không văng lỗi khi `StudyStore` chưa sẵn sàng
+- giữ lại toàn bộ file gốc, gồm cả `app.js` và `permtest.txt`, để bộ source không bị thiếu file
+
+## Cách cập nhật
+
+1. Giải nén thư mục này.
+2. Chép đè vào đúng thư mục extension cũ.
+3. Vào `chrome://extensions`.
+4. Bấm `Reload`.
+5. Không bấm `Remove` nếu bạn muốn giữ dữ liệu đang có.

@@ -1,16 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "Study Note Dashboard V3 Editor Pro Fix",
-  "version": "3.5.1",
+  "name": "Study Note Dashboard",
+  "version": "3.7.2",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlu94vqCmBy440FHG8hJWzsiOBv9HSHAmYWHqscSJoUWq9wSf97fEbm55+VzOZeR77xGbQtuFlLbq3YBo2KQ6UyEzlPMydF7d3yeJcigQL00vaEnQfegD2BmY5k50m8xX5/P73T5xIERuWJ/xRcB54z0JpxReaQh3c1tbeyCBuZex1ka7pDLhlS52FhMPHqUYMZ2vkIQdY0EPMwgHm9o8q++bmeT7m53qzWWy0jF1Pq1qA5BFTUfxskZDGLmHqmZX5DtyxFYuuTFLi9wP5+QhhNGa3dTQg/0Gpvy31qmggao8jU+C/mkZ6xXt2ORYeYqzIY8u527FIzkUT7bzwYnX/QIDAQAB",
-  "description": "Dashboard ghi chú học tập với Editor Pro, autosave, preview markdown và backup tự động.",
+  "description": "Workspace ghi chú học tập theo môn, chương, loại note; có Study Sprint, lịch ôn theo chu kỳ và backup tự động.",
   "permissions": ["storage"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_title": "Study Note",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
   },
   "options_page": "options.html",
   "icons": {

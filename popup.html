@@ -1,56 +1,144 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="popup-html">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Study Note Popup</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="popup.css" />
 </head>
-<body class="popup-body">
-  <div class="popup-shell">
-    <div class="popup-card">
-      <div id="popupToast" class="toast hidden"></div>
-      <div class="section-head">
+<body class="popup-body refined-popup-body" style="width:420px;min-width:420px;max-width:420px;overflow:hidden;">
+  <div class="popup-shell popup-shell-refined" id="popupRoot" style="width:100%;min-width:392px;">
+    <div id="popupToast" class="toast hidden"></div>
+    <div id="popupError" class="popup-error hidden"></div>
+
+    <header class="popup-hero panel-surface">
+      <div class="popup-hero-copy">
+        <p class="eyebrow">Study Note</p>
+        <h1 class="title popup-title">Quick Capture</h1>
+        <p class="subtitle popup-subtitle">Ghi nhanh note, xem hàng đợi ôn tập và mở dashboard khi cần.</p>
+      </div>
+      <button class="btn popup-dashboard-btn" id="openDashboardBtn" type="button">Dashboard</button>
+    </header>
+
+    <section class="popup-summary-grid" id="popupStats"></section>
+
+    <section class="popup-draft-strip panel-surface" id="popupDraftBar">
+      <div class="popup-draft-copy">
+        <span class="popup-draft-label">Bản nháp</span>
+        <p id="popupDraftInfo">Chưa có bản nháp đang viết.</p>
+      </div>
+      <button class="mini-btn" id="continueDraftBtn" type="button">Mở Editor Pro</button>
+    </section>
+
+    <section class="popup-editor panel-surface">
+      <div class="popup-block-head">
         <div>
-          <p class="eyebrow">Study Note</p>
-          <h1 class="title popup-title">Ghi nhanh</h1>
-          <p class="subtitle">Lưu note ngay mà không rời tab hiện tại.</p>
+          <p class="section-kicker accent">Ghi note</p>
+          <h2 class="section-title popup-section-title">Lưu nhanh trong popup</h2>
+        </div>
+        <span class="pill subtle-pill">Ctrl/Cmd + Enter để lưu</span>
+      </div>
+
+      <div class="popup-quick-subjects">
+        <div class="popup-inline-label">Môn học</div>
+        <div id="popupSubjectChips" class="subject-chip-row"></div>
+      </div>
+
+      <div class="popup-template-wrap">
+        <div class="popup-inline-label">Mẫu nhanh</div>
+        <div class="template-row popup-template-row compact-template-row">
+          <button class="chip template-chip" data-popup-template="coding" type="button">Lập trình</button>
+          <button class="chip template-chip" data-popup-template="math" type="button">Toán</button>
+          <button class="chip template-chip" data-popup-template="language" type="button">Ngoại ngữ</button>
+          <button class="chip template-chip" data-popup-template="mistake" type="button">Lỗi sai</button>
         </div>
       </div>
 
-      <div class="popup-stats" id="popupStats"></div>
+      <div class="popup-form-stack">
+        <div class="popup-field">
+          <label class="popup-field-label" for="popupTitle">Tiêu đề</label>
+          <input id="popupTitle" class="capture-input refined-input" type="text" placeholder="Ví dụ: Closure trong JavaScript" />
+        </div>
 
-      <div class="popup-draft-bar" id="popupDraftBar">
-        <span class="pill subtle-pill" id="popupDraftInfo">Chưa có bản nháp Editor Pro.</span>
-        <button class="mini-btn" id="continueDraftBtn">Tiếp tục viết</button>
-      </div>
+        <div class="popup-field">
+          <label class="popup-field-label" for="popupContent">Nội dung chính</label>
+          <textarea id="popupContent" class="capture-textarea refined-textarea" placeholder="Gõ nhanh điều vừa học được, công thức, ý chính, lỗi gặp phải..."></textarea>
+        </div>
 
-      <input id="popupTitle" class="capture-input" type="text" placeholder="Tiêu đề note" />
-      <div class="capture-grid three-col compact-grid">
-        <select id="popupTag" class="capture-input"></select>
-        <select id="popupStatus" class="capture-input">
-          <option value="Đang học">Đang học</option>
-          <option value="Đã lưu">Đã lưu</option>
-          <option value="Cần ôn">Cần ôn</option>
-        </select>
-        <input id="popupMastery" class="capture-input" type="number" min="0" max="100" value="60" />
-      </div>
-      <textarea id="popupContent" class="capture-textarea small" placeholder="Gõ nhanh điều vừa học được..."></textarea>
-      <div class="capture-actions">
-        <button class="btn btn-primary grow" id="popupSaveBtn">Lưu note</button>
-        <button class="btn" id="openDashboardBtn">Mở dashboard</button>
-      </div>
+        <div class="popup-toggle-row">
+          <button class="popup-toggle-btn" id="toggleAnswerBtn" type="button">+ Thêm đáp án / flashcard</button>
+          <button class="popup-toggle-btn" id="toggleDetailsBtn" type="button">+ Mở chi tiết</button>
+        </div>
 
-      <div class="card compact-card">
-        <div class="section-head">
-          <div>
-            <p class="section-kicker">Review Queue</p>
-            <h3 class="section-title small-title">Cần ôn sớm</h3>
+        <div id="popupAnswerWrap" class="popup-collapsible hidden">
+          <div class="popup-field">
+            <label class="popup-field-label" for="popupAnswer">Đáp án / mặt sau flashcard</label>
+            <textarea id="popupAnswer" class="capture-textarea refined-textarea compact-textarea" placeholder="Tóm tắt, kết luận hoặc mặt sau flashcard"></textarea>
           </div>
         </div>
-        <div id="popupReviewList" class="stack-list compact-list"></div>
+
+        <div id="popupDetailsPanel" class="popup-collapsible hidden">
+          <div class="capture-grid two-col compact-grid popup-detail-grid">
+            <div class="popup-field">
+              <label class="popup-field-label" for="popupSubject">Môn học</label>
+              <select id="popupSubject" class="capture-input refined-input"></select>
+            </div>
+            <div class="popup-field">
+              <label class="popup-field-label" for="popupTag">Tag</label>
+              <select id="popupTag" class="capture-input refined-input"></select>
+            </div>
+          </div>
+
+          <div class="capture-grid two-col compact-grid popup-detail-grid">
+            <div class="popup-field">
+              <label class="popup-field-label" for="popupChapter">Chương / bài học</label>
+              <input id="popupChapter" class="capture-input refined-input" type="text" placeholder="Ví dụ: Chương 2" />
+            </div>
+            <div class="popup-field">
+              <label class="popup-field-label" for="popupKind">Loại note</label>
+              <select id="popupKind" class="capture-input refined-input"></select>
+            </div>
+          </div>
+
+          <div class="capture-grid two-col compact-grid popup-detail-grid">
+            <div class="popup-field">
+              <label class="popup-field-label" for="popupStatus">Trạng thái</label>
+              <select id="popupStatus" class="capture-input refined-input">
+                <option value="Đang học">Đang học</option>
+                <option value="Đã lưu">Đã lưu</option>
+                <option value="Cần ôn">Cần ôn</option>
+              </select>
+            </div>
+            <div class="popup-field">
+              <label class="popup-field-label" for="popupMastery">Mastery %</label>
+              <input id="popupMastery" class="capture-input refined-input" type="number" min="0" max="100" value="60" placeholder="60" />
+            </div>
+          </div>
+
+          <div class="popup-field">
+            <label class="popup-field-label" for="popupSource">Nguồn học</label>
+            <input id="popupSource" class="capture-input refined-input" type="text" placeholder="Ví dụ: Lecture, Docs, Practice" />
+          </div>
+        </div>
+
+        <div class="capture-actions popup-actions-row">
+          <button class="btn btn-primary grow" id="popupSaveBtn" type="button">Lưu nhanh</button>
+          <button class="btn" id="resetPopupBtn" type="button">Làm mới</button>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <section class="popup-review panel-surface">
+      <div class="section-head popup-review-head">
+        <div>
+          <p class="section-kicker">Review Queue</p>
+          <h3 class="section-title small-title">Ưu tiên ôn trước</h3>
+        </div>
+        <span class="pill subtle-pill" id="popupDueMeta">0 note</span>
+      </div>
+      <div id="popupReviewList" class="stack-list compact-list popup-review-list"></div>
+    </section>
   </div>
 
   <script src="shared.js"></script>

@@ -1,10 +1,22 @@
 (() => {
-  const VERSION = '3.5.1';
+  const VERSION = '3.7.2';
   const APP_KEY = 'study_note_dashboard_v3_stable';
   const DRAFT_KEY = `${APP_KEY}_editor_draft`;
 
   const MAX_BACKUPS = 12;
-  const DEFAULT_TAGS = ['JavaScript', 'Backend', 'React', 'Frontend', 'Algorithms', 'Git & Tools'];
+  const MS_DAY = 24 * 60 * 60 * 1000;
+  const NOTE_KINDS = ['concept', 'formula', 'example', 'question', 'code', 'mistake', 'summary'];
+  const KIND_LABELS = {
+    concept: 'Khái niệm',
+    formula: 'Công thức',
+    example: 'Ví dụ',
+    question: 'Câu hỏi',
+    code: 'Code',
+    mistake: 'Lỗi sai',
+    summary: 'Tóm tắt'
+  };
+  const DEFAULT_SUBJECTS = ['Lập trình', 'Toán', 'Thống kê', 'Ngoại ngữ', 'Kinh tế', 'Lý thuyết', 'Công cụ'];
+  const DEFAULT_TAGS = ['JavaScript', 'Backend', 'React', 'Frontend', 'Algorithms', 'Math', 'Statistics', 'English', 'Economics', 'Git & Tools'];
   const LEGACY_OBJECT_KEYS = ['studyNoteV3Data'];
   const LEGACY_NOTE_KEYS = [
     'study_note_workspace_v2_plus_notes',
@@ -24,52 +36,82 @@
       {
         id: 'n1',
         title: 'Closure trong JavaScript',
+        subject: 'Lập trình',
+        chapter: 'Hàm và lexical scope',
         tag: 'JavaScript',
+        kind: 'concept',
+        source: 'Lecture',
+        answer: 'Closure giúp hàm giữ lại biến trong lexical environment ngay cả khi được gọi ngoài phạm vi ban đầu.',
         preview: 'Closure xuất hiện khi một hàm ghi nhớ phạm vi lexical của nó ngay cả khi được gọi bên ngoài phạm vi ban đầu.',
         status: 'Đã lưu',
         mastery: 78,
         pinned: true,
         important: true,
         review: false,
+        reviewCount: 3,
+        studyStage: 2,
+        lastReviewedAt: now - 2 * MS_DAY,
+        nextReviewAt: now + 3 * MS_DAY,
         createdAt: now - 20 * 60 * 1000,
         updatedAt: now - 20 * 60 * 1000,
-        timeLabel: 'Hôm nay · 09:40'
+        timeLabel: 'Hôm nay · 09:40',
+        history: []
       },
       {
         id: 'n2',
         title: 'HTTP status code cần nhớ',
+        subject: 'Lập trình',
+        chapter: 'REST API cơ bản',
         tag: 'Backend',
+        kind: 'summary',
+        source: 'Docs',
+        answer: '200/201 cho thành công, 400 cho request sai, 401 cho thiếu quyền, 404 cho không tìm thấy, 500 cho lỗi server.',
         preview: '200 OK, 201 Created, 204 No Content, 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error.',
         status: 'Cần ôn',
         mastery: 48,
         pinned: false,
         important: false,
         review: true,
+        reviewCount: 1,
+        studyStage: 0,
+        lastReviewedAt: now - MS_DAY,
+        nextReviewAt: now - 3 * 60 * 60 * 1000,
         createdAt: now - 90 * 60 * 1000,
         updatedAt: now - 90 * 60 * 1000,
-        timeLabel: 'Hôm nay · 08:10'
+        timeLabel: 'Hôm nay · 08:10',
+        history: []
       },
       {
         id: 'n3',
-        title: 'useMemo và useCallback',
-        tag: 'React',
-        preview: 'Dùng để tối ưu render, nhưng chỉ thật sự cần khi có chi phí tính toán lớn hoặc truyền props xuống component con nhạy cảm.',
+        title: 'Đạo hàm của sin(x)',
+        subject: 'Toán',
+        chapter: 'Đạo hàm cơ bản',
+        tag: 'Math',
+        kind: 'formula',
+        source: 'Self-study',
+        answer: '(sin x)\' = cos x',
+        preview: 'Ghi nhớ mối quan hệ giữa sin và cos để giải nhanh bài đạo hàm lượng giác.',
         status: 'Đang học',
         mastery: 61,
         pinned: false,
         important: false,
         review: true,
+        reviewCount: 2,
+        studyStage: 1,
+        lastReviewedAt: now - 12 * 60 * 60 * 1000,
+        nextReviewAt: now + 12 * 60 * 60 * 1000,
         createdAt: now - 12 * 60 * 60 * 1000,
         updatedAt: now - 12 * 60 * 60 * 1000,
-        timeLabel: 'Hôm qua · 21:14'
+        timeLabel: 'Hôm qua · 21:14',
+        history: []
       }
     ],
     tasks: [
-      { id: 't1', text: 'Ôn lại note React hooks trước 20:00', done: false },
-      { id: 't2', text: 'Viết note mới cho phần RESTful API', done: false },
-      { id: 't3', text: 'Ghim 3 note cốt lõi để review cuối tuần', done: true }
+      { id: 't1', text: 'Ôn lại 3 note mastery thấp nhất', done: false },
+      { id: 't2', text: 'Tạo một note theo template cho bài đang học', done: false },
+      { id: 't3', text: 'Ghim 2 note cốt lõi để review cuối tuần', done: true }
     ],
-    tags: DEFAULT_TAGS,
+    tags: [...DEFAULT_TAGS],
     backups: [],
     meta: {
       installedAt: new Date().toISOString(),
@@ -79,18 +121,77 @@
   };
 
   function hasChromeStorage() {
-    return typeof chrome !== 'undefined' && chrome?.storage?.local;
+    return typeof chrome !== 'undefined' && Boolean(chrome?.storage?.local);
+  }
+
+  function hasLocalStorage() {
+    try {
+      return typeof localStorage !== 'undefined';
+    } catch {
+      return false;
+    }
   }
 
   function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
   }
 
+  function storageGetCompat(key) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.storage.local.get([key], (result) => {
+          const error = chrome.runtime?.lastError;
+          if (error) {
+            reject(new Error(error.message));
+            return;
+          }
+          resolve(result?.[key] ?? null);
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  function storageSetCompat(key, value) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.storage.local.set({ [key]: value }, () => {
+          const error = chrome.runtime?.lastError;
+          if (error) {
+            reject(new Error(error.message));
+            return;
+          }
+          resolve();
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  function storageRemoveCompat(key) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.storage.local.remove(key, () => {
+          const error = chrome.runtime?.lastError;
+          if (error) {
+            reject(new Error(error.message));
+            return;
+          }
+          resolve();
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async function rawGet(key) {
     if (hasChromeStorage()) {
-      const data = await chrome.storage.local.get([key]);
-      return data[key] ?? null;
+      return storageGetCompat(key);
     }
+    if (!hasLocalStorage()) return null;
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     try {
@@ -102,18 +203,22 @@
 
   async function rawSet(key, value) {
     if (hasChromeStorage()) {
-      await chrome.storage.local.set({ [key]: value });
+      await storageSetCompat(key, value);
       return;
     }
-    localStorage.setItem(key, JSON.stringify(value));
+    if (hasLocalStorage()) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
   }
 
   async function rawRemove(key) {
     if (hasChromeStorage()) {
-      await chrome.storage.local.remove(key);
+      await storageRemoveCompat(key);
       return;
     }
-    localStorage.removeItem(key);
+    if (hasLocalStorage()) {
+      localStorage.removeItem(key);
+    }
   }
 
   function clampMastery(value) {
@@ -122,14 +227,20 @@
     return Math.max(0, Math.min(100, Math.round(num)));
   }
 
+  function clampStage(value) {
+    const num = Number(value);
+    if (Number.isNaN(num)) return 0;
+    return Math.max(0, Math.min(6, Math.round(num)));
+  }
+
   function timeLabel(ts) {
     const d = new Date(ts);
-    const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
+    const current = new Date();
+    const yesterday = new Date(current);
+    yesterday.setDate(current.getDate() - 1);
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
-    if (d.toDateString() === now.toDateString()) return `Hôm nay · ${hh}:${mm}`;
+    if (d.toDateString() === current.toDateString()) return `Hôm nay · ${hh}:${mm}`;
     if (d.toDateString() === yesterday.toDateString()) return `Hôm qua · ${hh}:${mm}`;
     return `${d.getDate()}/${d.getMonth() + 1} · ${hh}:${mm}`;
   }
@@ -140,10 +251,80 @@
     return 'Đang học';
   }
 
+  function normalizeKind(value) {
+    return NOTE_KINDS.includes(value) ? value : 'concept';
+  }
+
+  function kindLabel(kind) {
+    return KIND_LABELS[normalizeKind(kind)] || KIND_LABELS.concept;
+  }
+
   function inferTitle(text) {
     const clean = String(text || '').replace(/\s+/g, ' ').trim();
     if (!clean) return 'Note mới';
     return clean.length > 42 ? `${clean.slice(0, 42)}...` : clean;
+  }
+
+  function inferSubject(raw = {}) {
+    const value = String(raw.subject || '').trim();
+    if (value) return value;
+    const tag = String(raw.tag || '').trim().toLowerCase();
+    if (['javascript', 'react', 'backend', 'frontend', 'algorithms', 'git & tools'].includes(tag)) return 'Lập trình';
+    if (['math'].includes(tag)) return 'Toán';
+    if (['statistics'].includes(tag)) return 'Thống kê';
+    if (['english'].includes(tag)) return 'Ngoại ngữ';
+    if (['economics'].includes(tag)) return 'Kinh tế';
+    return String(raw.tag || 'Lập trình').trim() || 'Lập trình';
+  }
+
+  function reviewIntervals(note) {
+    switch (normalizeKind(note.kind)) {
+      case 'formula':
+        return [0, 1, 2, 5, 10, 21, 45];
+      case 'question':
+        return [0, 1, 2, 4, 7, 14, 30];
+      case 'mistake':
+        return [0, 1, 2, 4, 7, 14, 30];
+      default:
+        return [0, 1, 3, 7, 14, 30, 60];
+    }
+  }
+
+  function scheduleNextReview(note, outcome = 'remember') {
+    const current = Date.now();
+    if (outcome === 'forget') {
+      note.studyStage = 0;
+      note.lastReviewedAt = current;
+      note.nextReviewAt = current + 6 * 60 * 60 * 1000;
+      return note;
+    }
+    note.studyStage = clampStage((note.studyStage ?? 0) + 1);
+    note.lastReviewedAt = current;
+    const intervals = reviewIntervals(note);
+    const days = Math.max(1, intervals[Math.min(note.studyStage, intervals.length - 1)] || 1);
+    note.nextReviewAt = current + days * MS_DAY;
+    return note;
+  }
+
+  function dueLabel(ts) {
+    if (!ts) return 'Chưa có lịch ôn';
+    const diff = Number(ts) - Date.now();
+    if (diff <= 0) return 'Đến hạn';
+    const hours = Math.round(diff / (60 * 60 * 1000));
+    if (hours < 24) return `${hours} giờ nữa`;
+    const days = Math.round(diff / MS_DAY);
+    if (days <= 1) return 'Ngày mai';
+    if (days <= 7) return `${days} ngày nữa`;
+    return new Date(ts).toLocaleDateString('vi-VN');
+  }
+
+  function isDue(note) {
+    return Boolean(note && typeof note.nextReviewAt === 'number' && note.nextReviewAt <= Date.now());
+  }
+
+  function syncReviewState(note) {
+    note.review = Boolean(note.status === 'Cần ôn' || note.mastery < 65 || isDue(note));
+    return note;
   }
 
   function normalizeHistory(history) {
@@ -156,12 +337,21 @@
           id: String(item.id || `h-${updatedAt}-${Math.random().toString(36).slice(2, 6)}`),
           label: String(item.label || 'Revision').trim() || 'Revision',
           title: String(item.title || '').trim(),
-          tag: String(item.tag || 'Frontend').trim() || 'Frontend',
+          subject: inferSubject(item),
+          chapter: String(item.chapter || '').trim(),
+          tag: String(item.tag || 'JavaScript').trim() || 'JavaScript',
+          kind: normalizeKind(item.kind),
+          source: String(item.source || '').trim(),
+          answer: String(item.answer || '').trim(),
           preview: String(item.preview || item.content || '').trim(),
           status: normalizeStatus(item.status),
           mastery: clampMastery(item.mastery ?? 0),
           pinned: Boolean(item.pinned),
           important: Boolean(item.important),
+          reviewCount: Math.max(0, Number(item.reviewCount || 0)),
+          studyStage: clampStage(item.studyStage || 0),
+          lastReviewedAt: item.lastReviewedAt ? Number(new Date(item.lastReviewedAt)) : null,
+          nextReviewAt: item.nextReviewAt ? Number(new Date(item.nextReviewAt)) : null,
           updatedAt
         };
       })
@@ -176,41 +366,68 @@
       id: `h-${updatedAt}-${Math.random().toString(36).slice(2, 6)}`,
       label,
       title: String(raw.title || '').trim(),
-      tag: String(raw.tag || 'Frontend').trim() || 'Frontend',
+      subject: inferSubject(raw),
+      chapter: String(raw.chapter || '').trim(),
+      tag: String(raw.tag || 'JavaScript').trim() || 'JavaScript',
+      kind: normalizeKind(raw.kind),
+      source: String(raw.source || '').trim(),
+      answer: String(raw.answer || '').trim(),
       preview: String(raw.preview || raw.content || '').trim(),
       status: normalizeStatus(raw.status),
       mastery: clampMastery(raw.mastery ?? 0),
       pinned: Boolean(raw.pinned),
       important: Boolean(raw.important),
+      reviewCount: Math.max(0, Number(raw.reviewCount || 0)),
+      studyStage: clampStage(raw.studyStage || 0),
+      lastReviewedAt: raw.lastReviewedAt ? Number(new Date(raw.lastReviewedAt)) : null,
+      nextReviewAt: raw.nextReviewAt ? Number(new Date(raw.nextReviewAt)) : null,
       updatedAt
     };
   }
 
-  function normalizeNote(raw, fallbackTag = 'Frontend') {
+  function normalizeNote(raw, fallbackTag = 'JavaScript') {
     if (!raw || typeof raw !== 'object') return null;
     const createdAt = Number(new Date(raw.createdAt || raw.updatedAt || Date.now()));
     const updatedAt = Number(new Date(raw.updatedAt || raw.createdAt || Date.now()));
     const preview = String(raw.preview || raw.content || '').trim();
     const title = String(raw.title || inferTitle(preview)).trim();
     if (!title) return null;
-    const tag = String(raw.tag || fallbackTag || 'Frontend').trim() || 'Frontend';
+    const tag = String(raw.tag || fallbackTag || 'JavaScript').trim() || 'JavaScript';
     const mastery = clampMastery(raw.mastery ?? raw.progress ?? 60);
     const status = normalizeStatus(raw.status);
-    return {
+    const note = {
       id: String(raw.id || `n-${createdAt}-${Math.random().toString(36).slice(2, 6)}`),
       title,
+      subject: inferSubject(raw),
+      chapter: String(raw.chapter || '').trim(),
       tag,
+      kind: normalizeKind(raw.kind),
+      source: String(raw.source || '').trim(),
+      answer: String(raw.answer || '').trim(),
       preview,
       status,
       mastery,
       pinned: Boolean(raw.pinned),
       important: Boolean(raw.important),
       review: Boolean(raw.review ?? (status === 'Cần ôn' || mastery < 65)),
+      reviewCount: Math.max(0, Number(raw.reviewCount || 0)),
+      studyStage: clampStage(raw.studyStage || 0),
+      lastReviewedAt: raw.lastReviewedAt ? Number(new Date(raw.lastReviewedAt)) : null,
+      nextReviewAt: raw.nextReviewAt ? Number(new Date(raw.nextReviewAt)) : null,
       createdAt,
       updatedAt,
       timeLabel: raw.timeLabel || timeLabel(updatedAt),
       history: normalizeHistory(raw.history)
     };
+    if (!note.nextReviewAt) {
+      scheduleNextReview(note, note.mastery < 65 || note.status === 'Cần ôn' ? 'forget' : 'remember');
+      if (note.mastery >= 70 && note.status !== 'Cần ôn') {
+        note.studyStage = clampStage(raw.studyStage || 1);
+        scheduleNextReview(note, 'remember');
+      }
+    }
+    note.timeLabel = raw.timeLabel || timeLabel(updatedAt);
+    return syncReviewState(note);
   }
 
   function normalizeTask(raw, index) {
@@ -232,7 +449,7 @@
   function normalizeData(input) {
     const notes = Array.isArray(input?.notes) ? input.notes.map((note) => normalizeNote(note)).filter(Boolean) : [];
     const tasksInput = Array.isArray(input?.tasks) ? input.tasks : seed.tasks;
-    const tasks = tasksInput.map(normalizeTask).filter(Boolean).slice(0, 40);
+    const tasks = tasksInput.map(normalizeTask).filter(Boolean).slice(0, 50);
     const backups = Array.isArray(input?.backups)
       ? input.backups.filter(Boolean).slice(0, MAX_BACKUPS)
       : [];
@@ -323,31 +540,44 @@
     return normalizeData(current);
   }
 
-  function makeNote({ title, tag, preview, status, mastery, pinned = false, important = false }) {
-    const now = Date.now();
-    return normalizeNote({
-      id: `n-${now}`,
+  function makeNote({ title, subject, chapter, tag, kind, source, answer, preview, status, mastery, pinned = false, important = false }) {
+    const current = Date.now();
+    const note = normalizeNote({
+      id: `n-${current}-${Math.random().toString(36).slice(2, 6)}`,
       title,
+      subject,
+      chapter,
       tag,
+      kind,
+      source,
+      answer,
       preview,
       status,
       mastery,
       pinned,
       important,
-      review: normalizeStatus(status) === 'Cần ôn' || clampMastery(mastery) < 65,
-      createdAt: now,
-      updatedAt: now,
-      timeLabel: timeLabel(now)
+      reviewCount: 0,
+      studyStage: 0,
+      createdAt: current,
+      updatedAt: current,
+      timeLabel: timeLabel(current)
     });
+    return syncReviewState(note);
   }
 
   function exportToFile(filename, payload) {
+    if (typeof document === 'undefined' || typeof URL === 'undefined') {
+      throw new Error('Không thể xuất file ở context hiện tại.');
+    }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    a.rel = 'noopener';
+    document.body?.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   }
 
@@ -407,7 +637,12 @@
     const payload = {
       noteId: String(draft?.noteId || 'new'),
       title: String(draft?.title || '').trim(),
-      tag: String(draft?.tag || 'Frontend').trim() || 'Frontend',
+      subject: inferSubject(draft || {}),
+      chapter: String(draft?.chapter || '').trim(),
+      tag: String(draft?.tag || 'JavaScript').trim() || 'JavaScript',
+      kind: normalizeKind(draft?.kind),
+      source: String(draft?.source || '').trim(),
+      answer: String(draft?.answer || '').trim(),
       status: normalizeStatus(draft?.status),
       mastery: clampMastery(draft?.mastery ?? 0),
       preview: String(draft?.preview || '').replace(/\r\n/g, '\n'),
@@ -425,7 +660,12 @@
     return {
       noteId: String(draft.noteId || 'new'),
       title: String(draft.title || ''),
-      tag: String(draft.tag || 'Frontend'),
+      subject: inferSubject(draft),
+      chapter: String(draft.chapter || ''),
+      tag: String(draft.tag || 'JavaScript'),
+      kind: normalizeKind(draft.kind),
+      source: String(draft.source || ''),
+      answer: String(draft.answer || ''),
       status: normalizeStatus(draft.status),
       mastery: clampMastery(draft.mastery ?? 0),
       preview: String(draft.preview || ''),
@@ -445,10 +685,31 @@
     return note.history;
   }
 
+  function completeReview(note, outcome = 'remember') {
+    if (!note || typeof note !== 'object') return note;
+    note.reviewCount = Math.max(0, Number(note.reviewCount || 0)) + 1;
+    if (outcome === 'forget') {
+      note.mastery = Math.max(0, note.mastery - 12);
+      note.status = 'Cần ôn';
+      scheduleNextReview(note, 'forget');
+    } else {
+      note.mastery = Math.min(100, note.mastery + 12);
+      if (note.status === 'Cần ôn' && note.mastery >= 65) note.status = 'Đã lưu';
+      scheduleNextReview(note, 'remember');
+    }
+    note.updatedAt = Date.now();
+    note.timeLabel = timeLabel(note.updatedAt);
+    return syncReviewState(note);
+  }
+
   globalThis.StudyStore = {
     VERSION,
     APP_KEY,
     DRAFT_KEY,
+    NOTE_KINDS,
+    KIND_LABELS,
+    DEFAULT_SUBJECTS,
+    DEFAULT_TAGS,
     ensureData,
     saveData,
     makeNote,
@@ -465,6 +726,14 @@
     pushHistory,
     inferTitle,
     normalizeData,
-    clampMastery
+    clampMastery,
+    clampStage,
+    normalizeKind,
+    kindLabel,
+    dueLabel,
+    isDue,
+    completeReview,
+    scheduleNextReview,
+    reviewIntervals
   };
 })();
